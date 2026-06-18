@@ -1,0 +1,9 @@
+pandas>=2.0.0
+numpy>=1.24.0
+sentence-transformers>=2.2.0
+tqdm>=4.65.0
+python-docx>=0.8.11
+faiss-cpu>=1.7.4
+lightgbm>=3.3.0
+gradio>=4.0.0
+rank-bm25>=0.2.0

@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+*.spec
+
+# Virtual environments
+venv/
+env/
+.env
+.venv/
+
+# Data files (large binaries — commit only samples or processed outputs)
+data/raw/*.gz
+data/raw/*.jsonl
+data/embeddings/*.npy
+data/models/*.pkl
+
+# Outputs
+outputs/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*.DS_Store
+
+# Gradio temp files
+sandbox/.gradio/
+
+# Jupyter / Notebooks
+.ipynb_checkpoints/
+
+# Logs & temp
+*.log
+*.tmp
