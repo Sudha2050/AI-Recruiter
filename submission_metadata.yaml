@@ -1,0 +1,71 @@
+# Redrob Hackathon — Submission Metadata Template
+# ============================================================================
+# Team identity
+# ============================================================================
+team_name: "Vectors & Vibes"  
+primary_contact:
+  name: "Uttarakavata Sudhakar"
+  email: "sudharaju434@gmail.com"
+  phone: "+91-7299961484"
+
+team_members:
+  - name: "Biswal Bikash"
+    email: "bikashbiswal636@gmail.com"
+    role: "Frontend Engineer"
+  # Add more as needed
+
+# ============================================================================
+# Code and reproducibility
+# ============================================================================
+github_repo: "https://github.com/YOUR_USERNAME/redrob-ranker"
+sandbox_link: "https://huggingface.co/spaces/YOUR_USERNAME/redrob-ranker"
+
+reproduce_command: "python rank.py --candidates ./candidates.jsonl --out ./submission.csv"
+
+# ============================================================================
+# Compute environment
+# ============================================================================
+compute:
+  platform: "Lenovo ideapad gaming 3"
+  cpu_cores: 12
+  ram_gb: 16
+  python_version: "3.11"
+  os: "Windows 11"
+  uses_gpu_for_inference: false
+  has_network_during_ranking: false
+  pre_computation_required: false
+  pre_computation_time_minutes: 0
+
+# ============================================================================
+# AI tools declaration
+# ============================================================================
+ai_tools_used:
+  - "Claude"
+  - "GitHub Copilot"
+
+ai_usage_summary: |
+  Used Claude for architecture design, code review, and debugging.
+  Used Copilot for autocomplete and boilerplate generation.
+  No candidate data was sent to any LLM.
+
+# ============================================================================
+# Approach summary
+# ============================================================================
+methodology_summary: |
+  4-stage cascade ranker:
+  1. BM25 lexical retrieval (top 2000)
+  2. Cross-Encoder (TinyBERT) semantic re-ranking (top 300)
+  3. Structured scoring: title, company, experience, skills, education
+  4. Behavioral multiplier (14 signals) + honeypot penalty.
+  Final score = (0.4*semantic + 0.6*structured) × behavioral × honeypot.
+  Scores scaled to 0–100. Runtime ~30 seconds on CPU.
+
+# ============================================================================
+# Declarations
+# ============================================================================
+declarations:
+  read_submission_spec: true
+  code_is_original_work: true
+  no_collusion: true
+  honeypot_check_done: true
+  reproduction_tested: true

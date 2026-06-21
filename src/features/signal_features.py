@@ -42,46 +42,113 @@ def behavioral_features(redrob_signals: Dict[str, Any]) -> Dict[str, Any]:
 
 def compute_behavioral_multiplier(redrob_signals: Dict[str, Any]) -> float:
     """
-    Compute a single multiplier (0.3 - 1.2) from behavioral signals.
-    Uses fixed reference date.
+    Compute a behavioral multiplier (0.3 - 1.2) using 14 signals.
+    Includes all High and Medium priority signals.
     """
-    bf = behavioral_features(redrob_signals)
+    if not redrob_signals:
+        return 1.0
+
     mult = 1.0
 
-    # Inactivity penalty – based on static reference date
-    if bf['inactive_days'] > 180:
+    # ---- Existing signals (7) ----
+    # 1. Inactivity (last_active_date)
+    try:
+        last_active = datetime.strptime(redrob_signals['last_active_date'], '%Y-%m-%d')
+        inactive_days = (REFERENCE_DATE - last_active).days
+    except (KeyError, ValueError):
+        inactive_days = 0
+
+    if inactive_days > 180:
         mult *= 0.35
-    elif bf['inactive_days'] > 90:
+    elif inactive_days > 90:
         mult *= 0.55
-    elif bf['inactive_days'] > 30:
+    elif inactive_days > 30:
         mult *= 0.80
 
-    # Response rate
-    if bf['response_rate'] > 0.7:
+    # 2. Response rate
+    response_rate = redrob_signals.get('recruiter_response_rate', 0.5)
+    if response_rate > 0.7:
         mult *= 1.10
-    elif bf['response_rate'] > 0.4:
+    elif response_rate > 0.4:
         mult *= 1.00
     else:
         mult *= 0.65
 
-    # Open to work
-    if not bf['open_to_work']:
+    # 3. Open to work
+    if not redrob_signals.get('open_to_work_flag', False):
         mult *= 0.85
 
-    # GitHub activity
-    if bf['github_score'] > 50:
+    # 4. GitHub activity
+    github_score = redrob_signals.get('github_activity_score', -1)
+    if github_score > 50:
         mult *= 1.05
-    elif bf['github_score'] == -1:
+    elif github_score == -1:
         mult *= 0.95
 
-    # Profile completeness
-    if bf['completeness'] < 40:
+    # 5. Profile completeness
+    completeness = redrob_signals.get('profile_completeness_score', 50)
+    if completeness < 40:
         mult *= 0.80
 
-    # Verified email/phone
-    if not bf['verified_email']:
-        mult *= 0.95
-    if not bf['verified_phone']:
+    # 6. Verified email
+    if not redrob_signals.get('verified_email', False):
         mult *= 0.95
 
+    # 7. Verified phone
+    if not redrob_signals.get('verified_phone', False):
+        mult *= 0.95
+
+    # ---- New High Priority signals (2) ----
+    # 8. Preferred work mode (JD expects hybrid/remote)
+    mode = redrob_signals.get('preferred_work_mode', '').lower()
+    if mode in ['remote', 'hybrid']:
+        mult *= 1.04
+    elif mode == 'onsite':
+        mult *= 0.96
+
+    # 9. Willing to relocate
+    if redrob_signals.get('willing_to_relocate', False):
+        mult *= 1.03
+
+    # ---- New Medium Priority signals (5) ----
+    # 10. Notice period (JD prefers sub-30, can buy out 30)
+    notice = redrob_signals.get('notice_period_days', 90)
+    if notice <= 30:
+        mult *= 1.04
+    elif notice > 90:
+        mult *= 0.95
+
+    # 11. Average response time
+    avg_resp = redrob_signals.get('avg_response_time_hours', 48)
+    if avg_resp < 24:
+        mult *= 1.03
+    elif avg_resp > 72:
+        mult *= 0.96
+
+    # 12. Interview completion rate
+    completion = redrob_signals.get('interview_completion_rate', 0.5)
+    if completion > 0.8:
+        mult *= 1.04
+    elif completion < 0.3:
+        mult *= 0.95
+
+    # 13. Applications submitted in last 30 days
+    apps = redrob_signals.get('applications_submitted_30d', 3)
+    if 3 <= apps <= 5:
+        mult *= 1.03
+    elif apps == 0:
+        mult *= 0.97
+    elif apps > 10:
+        mult *= 0.95
+
+    # 14. Skill assessment scores (average of all assessments)
+    assessments = redrob_signals.get('skill_assessment_scores', {})
+    if assessments:
+        avg_assessment = sum(assessments.values()) / len(assessments) / 100.0  # 0-1
+        if avg_assessment > 0.7:
+            mult *= 1.03
+        elif avg_assessment < 0.3:
+            mult *= 0.97
+
+    # Clip to reasonable range
     return max(0.3, min(1.2, mult))
