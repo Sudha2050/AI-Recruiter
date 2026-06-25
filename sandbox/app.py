@@ -1,5 +1,7 @@
 import sys
 from pathlib import Path
+import warnings
+warnings.filterwarnings("ignore", message="'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated")
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -16,6 +18,12 @@ import pandas as pd
 import gradio as gr
 from rank_bm25 import BM25Okapi
 from sentence_transformers import CrossEncoder
+
+print("Initializing Cross-Encoder model globally...")
+cross_encoder = CrossEncoder(
+    'cross-encoder/ms-marco-TinyBERT-L-2-v2',
+    max_length=256
+)
 
 
 # ------------------------------------------------------------
@@ -310,6 +318,8 @@ def rank_candidates(jd_text: str, candidates: list, top_k: int = 100) -> pd.Data
     if not candidates:
         raise ValueError("No candidates provided.")
 
+    print(f"Total candidates: {len(candidates)}")
+
     # 1. BM25 retrieval
     print("Building BM25 index...")
     corpus = [aggregate_profile_text(c) for c in candidates]
@@ -319,26 +329,24 @@ def rank_candidates(jd_text: str, candidates: list, top_k: int = 100) -> pd.Data
     jd_tokens = tokenize(jd_text)
     bm25_scores = bm25.get_scores(jd_tokens)
 
-    top_k_coarse = min(2000, len(candidates))
+    top_k_coarse = min(2000, len(candidates))   # keep top 2000 candidates
+    print(f"BM25: keeping top {top_k_coarse} candidates")
     top_indices = np.argsort(bm25_scores)[::-1][:top_k_coarse]
     top_candidates = [candidates[i] for i in top_indices]
     top_texts = [corpus[i] for i in top_indices]
+    print(f"After BM25: {len(top_candidates)} candidates passed to Cross-Encoder")
 
     # 2. Cross‑Encoder re‑ranking
-    print("Loading Cross-Encoder for re-ranking...")
-    cross_encoder = CrossEncoder(
-        'cross-encoder/ms-marco-TinyBERT-L-2-v2',
-        max_length=256
-    )
+    print("Running Cross-Encoder prediction...")
     pairs = [(jd_text, text) for text in top_texts]
     cross_scores = cross_encoder.predict(
         pairs,
-        batch_size=153,
+        batch_size=256,   # was 153
         convert_to_numpy=True,
         show_progress_bar=True
     )
 
-    top_500_count = min(300, len(top_candidates))
+    top_500_count = min(300, len(top_candidates))  # re-rank top 300 candidates
     top_500_indices = np.argsort(cross_scores)[::-1][:top_500_count]
     top_500_candidates = [top_candidates[i] for i in top_500_indices]
     top_500_scores = cross_scores[top_500_indices]
@@ -481,11 +489,7 @@ css = """
 # ------------------------------------------------------------
 # Gradio UI layout
 # ------------------------------------------------------------
-with gr.Blocks(
-    title="Redrob AI Ranker",
-    theme=gr.themes.Default(primary_hue="indigo", neutral_hue="slate"),
-    css=css
-) as demo:
+with gr.Blocks(title="Redrob AI Ranker") as demo:
     with gr.Column(elem_classes=["header-card"]):
         gr.Markdown("""
         # 🧠 Intelligent Candidate Ranker (LLM‑powered)
@@ -502,7 +506,7 @@ with gr.Blocks(
                 file_input = gr.File(label="Upload Candidates", file_types=[".json", ".jsonl", ".jsonl.gz"])
                 submit_btn = gr.Button("⚡ Rank Candidates", variant="primary", elem_classes=["primary-btn"])
 
-            with gr.Column(scale=1.5, elem_classes=["panel-box"]):
+            with gr.Column(scale=2, elem_classes=["panel-box"]):
                 gr.Markdown("### 📊 Results (Top 100)")
                 error_output = gr.Textbox(label="Status", interactive=False)
                 output_table = gr.Dataframe(label="Ranked Candidates", interactive=False, wrap=True)
@@ -527,4 +531,8 @@ with gr.Blocks(
 
 # ------------------------------------------------------------
 if __name__ == "__main__":
-    demo.launch(share=True)
+    demo.launch(
+        share=True,
+        theme=gr.themes.Default(primary_hue="indigo", neutral_hue="slate"),
+        css=css
+    )

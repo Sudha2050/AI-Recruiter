@@ -12,6 +12,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+import argparse
 import time
 import numpy as np
 import pandas as pd
@@ -28,22 +29,50 @@ from src.ranking.reasoner import generate_reasoning
 
 
 def main():
+    parser = argparse.ArgumentParser(description="AI Recruiter CLI Ranker")
+    parser.add_argument("--candidates", type=str, default=str(settings.CANDIDATES_FILE), help="Path to candidates file")
+    parser.add_argument("--out", type=str, default="outputs/submission.csv", help="Path to output CSV file")
+    parser.add_argument("--jd", type=str, default=str(settings.JD_FILE), help="Path to Job Description docx file")
+    args = parser.parse_args()
+
     start = time.time()
 
     # --- Load candidates ---
-    print("Loading candidates...")
-    candidates = load_candidates(settings.CANDIDATES_FILE)
+    print(f"Loading candidates from {args.candidates}...")
+    candidates_path = Path(args.candidates)
+    candidates = load_candidates(candidates_path)
     print(f"Loaded {len(candidates)} candidates.")
 
-    # --- Load precomputed embeddings ---
+    # --- Load or compute candidate embeddings ---
     emb_path = settings.DATA_EMBEDDINGS / "candidate_embeddings.npy"
-    candidate_embs = np.load(emb_path)
-    print(f"Loaded embeddings shape: {candidate_embs.shape}")
+    model = None
+    if emb_path.exists():
+        candidate_embs = np.load(emb_path)
+        if len(candidate_embs) == len(candidates):
+            print(f"Loaded precomputed candidate embeddings of shape: {candidate_embs.shape}")
+        else:
+            print(f"Precomputed embeddings shape {candidate_embs.shape} does not match candidates count {len(candidates)}.")
+            print("Generating candidate embeddings on-the-fly...")
+            model = SentenceTransformer(settings.EMBEDDING_MODEL)
+            from src.embeddings.builder import aggregate_profile_text
+            texts = [aggregate_profile_text(c) for c in candidates]
+            raw_embs = model.encode(texts, batch_size=settings.EMBEDDING_BATCH_SIZE, show_progress_bar=True, convert_to_numpy=True)
+            norms = np.linalg.norm(raw_embs, axis=1, keepdims=True)
+            candidate_embs = (raw_embs / norms).astype(np.float16)
+    else:
+        print("Precomputed candidate embeddings not found. Generating on-the-fly...")
+        model = SentenceTransformer(settings.EMBEDDING_MODEL)
+        from src.embeddings.builder import aggregate_profile_text
+        texts = [aggregate_profile_text(c) for c in candidates]
+        raw_embs = model.encode(texts, batch_size=settings.EMBEDDING_BATCH_SIZE, show_progress_bar=True, convert_to_numpy=True)
+        norms = np.linalg.norm(raw_embs, axis=1, keepdims=True)
+        candidate_embs = (raw_embs / norms).astype(np.float16)
 
     # --- Parse JD and embed it ---
     print("Embedding JD...")
-    jd_text = parse_jd_docx(settings.JD_FILE)
-    model = SentenceTransformer(settings.EMBEDDING_MODEL)
+    jd_text = parse_jd_docx(Path(args.jd))
+    if model is None:
+        model = SentenceTransformer(settings.EMBEDDING_MODEL)
     jd_emb = model.encode(jd_text, convert_to_numpy=True)
     jd_norm = jd_emb / np.linalg.norm(jd_emb)
 
@@ -55,17 +84,21 @@ def main():
     # --- Stage 2: Coarse scoring (fast heuristic, keeps top 5K) ---
     print("Stage 2: Coarse ranking...")
     coarse_scores = [coarse_score(cand) for cand in candidates]
-    coarse_indices = np.argsort(coarse_scores)[::-1][:settings.TOP_K_COARSE]
+    
+    # Adjust top K coarse to handle small candidate datasets
+    top_k_coarse = min(settings.TOP_K_COARSE, len(candidates))
+    coarse_indices = np.argsort(coarse_scores)[::-1][:top_k_coarse]
     coarse_candidates = [candidates[i] for i in coarse_indices]
     coarse_embs = candidate_embs[coarse_indices]
 
-    # --- Stage 3: Semantic ranking via precomputed embeddings (top 500) ---
+    # --- Stage 3: Semantic ranking via precomputed/computed embeddings (top 500) ---
     print("Stage 3: Semantic ranking...")
-    sem_indices, sem_scores = semantic_rank(coarse_embs, jd_norm, settings.TOP_K_SEMANTIC)
+    top_k_semantic = min(settings.TOP_K_SEMANTIC, len(coarse_candidates))
+    sem_indices, sem_scores = semantic_rank(coarse_embs, jd_norm, top_k_semantic)
     sem_candidates = [coarse_candidates[i] for i in sem_indices]
     sem_scores_list = sem_scores.tolist()
 
-    # --- Stage 4: Fine ranking with LightGBM + behavioral signals ---
+    # --- Stage 4: Fine ranking with dynamic category weights ---
     print("Stage 4: Fine ranking...")
     final_scores = []
     for idx, cand in enumerate(sem_candidates):
@@ -95,7 +128,7 @@ def main():
             'reasoning': reasoning
         })
 
-    out_path = Path("outputs") / "submission.csv"
+    out_path = Path(args.out)
     out_path.parent.mkdir(exist_ok=True)
     pd.DataFrame(rows).to_csv(out_path, index=False)
     print(f"Submission saved to {out_path}")
