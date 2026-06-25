@@ -76,10 +76,19 @@ def main():
     jd_emb = model.encode(jd_text, convert_to_numpy=True)
     jd_norm = jd_emb / np.linalg.norm(jd_emb)
 
-    # --- Stage 1: Honeypot filtering (pre-compute for all) ---
+    # --- Stage 1: Honeypot filtering (pre-compute for all and filter) ---
     print("Stage 1: Honeypot filtering...")
+    filtered_candidates = []
+    keep_indices = []
     for i, cand in enumerate(candidates):
-        candidates[i]['_honeypot'] = honeypot_penalty(cand)
+        hp = honeypot_penalty(cand)
+        if hp > 0.0:  # Remove hard-disqualified honeypots from candidate pool immediately
+            cand['_honeypot'] = hp
+            filtered_candidates.append(cand)
+            keep_indices.append(i)
+    candidates = filtered_candidates
+    candidate_embs = candidate_embs[keep_indices]
+    print(f"Loaded {len(candidates)} clean candidates and aligned embeddings.")
 
     # --- Stage 2: Coarse scoring (fast heuristic, keeps top 5K) ---
     print("Stage 2: Coarse ranking...")
@@ -104,17 +113,17 @@ def main():
     for idx, cand in enumerate(sem_candidates):
         semantic = sem_scores_list[idx]
         fine = fine_score(cand, semantic)
-        final = fine if cand['_honeypot'] > 0.0 else 0.0
+        final = fine  # since hard honeypots are already filtered out, and soft penalties are applied in fine_score
         final_scores.append((cand['candidate_id'], final, cand))
 
-    # Convert final to 0–100 scale
+    # Convert final to 0–100 scale (with clamping to [0.0, 100.0] range)
     scaled_scores = []
     for cand_id, final, cand in final_scores:
-        scaled = final * 100.0
+        scaled = max(0.0, min(100.0, final * 100.0))
         scaled_scores.append((cand_id, scaled, cand))
 
-    # Sort by scaled score descending, then candidate_id ascending
-    scaled_scores.sort(key=lambda x: (-round(x[1], 4), x[0]))
+    # Sort by scaled score descending (using full precision), then candidate_id ascending
+    scaled_scores.sort(key=lambda x: (-x[1], x[0]))
     top100 = scaled_scores[:100]
 
     # Generate output rows

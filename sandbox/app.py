@@ -394,7 +394,7 @@ def rank_candidates(jd_text: str, candidates: list, top_k: int = 100) -> pd.Data
         final_scores.append((cand['candidate_id'], final, cand))
 
     # Sort and take top 100
-    final_scores.sort(key=lambda x: (-round(x[1], 4), x[0]))
+    final_scores.sort(key=lambda x: (-x[1], x[0]))
     top_results = final_scores[:top_k]
 
     rows = []
