@@ -55,9 +55,10 @@ def main():
     emb_path = settings.DATA_EMBEDDINGS / "candidate_embeddings.npy"
     model = None
     if emb_path.exists():
-        candidate_embs = np.load(emb_path)
+        # Load as a memory-mapped file to save RAM (on-demand loading)
+        candidate_embs = np.load(emb_path, mmap_mode='r')
         if len(candidate_embs) == len(candidates):
-            print(f"Loaded precomputed candidate embeddings of shape: {candidate_embs.shape}")
+            print(f"Loaded precomputed candidate embeddings of shape: {candidate_embs.shape} (mmap mode)")
         else:
             print(f"Precomputed embeddings shape {candidate_embs.shape} does not match candidates count {len(candidates)}.")
             print("Generating candidate embeddings on-the-fly...")
@@ -76,13 +77,27 @@ def main():
         norms = np.linalg.norm(raw_embs, axis=1, keepdims=True)
         candidate_embs = (raw_embs / norms).astype(np.float16)
 
-    # --- Parse JD and embed it ---
-    print("Embedding JD...")
+    # --- Parse JD and check cache ---
     jd_text = parse_jd_docx(Path(args.jd))
-    if model is None:
-        model = SentenceTransformer(settings.EMBEDDING_MODEL)
-    jd_emb = model.encode(jd_text, convert_to_numpy=True)
-    jd_norm = jd_emb / np.linalg.norm(jd_emb)
+    
+    # Cache JD embedding to prevent redundant encoding computations
+    import hashlib
+    jd_hash = hashlib.md5(jd_text.encode('utf-8')).hexdigest()
+    jd_cache_path = settings.DATA_EMBEDDINGS / f"jd_emb_{jd_hash}.npy"
+
+    if jd_cache_path.exists():
+        print(f"Loading cached JD embedding from {jd_cache_path}...")
+        jd_norm = np.load(jd_cache_path)
+    else:
+        print("Embedding JD...")
+        if model is None:
+            model = SentenceTransformer(settings.EMBEDDING_MODEL)
+        jd_emb = model.encode(jd_text, convert_to_numpy=True)
+        jd_norm = jd_emb / np.linalg.norm(jd_emb)
+        # Cache the embedding to disk
+        jd_cache_path.parent.mkdir(parents=True, exist_ok=True)
+        np.save(jd_cache_path, jd_norm)
+        print(f"Cached JD embedding to {jd_cache_path}")
 
     # --- Stage 1: Honeypot filtering (pre-compute for all and filter) ---
     print("Stage 1: Honeypot filtering...")
