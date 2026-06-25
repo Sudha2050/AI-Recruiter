@@ -11,14 +11,16 @@ primary_contact:
 team_members:
   - name: "Biswal Bikash"
     email: "bikashbiswal636@gmail.com"
-    role: "Frontend Engineer"
+    role: "ML Engineer"
   # Add more as needed
 
 # ============================================================================
 # Code and reproducibility
 # ============================================================================
-github_repo: "https://github.com/YOUR_USERNAME/redrob-ranker"
-sandbox_link: "https://huggingface.co/spaces/YOUR_USERNAME/redrob-ranker"
+github_repo: "https://github.com/Sudha2050/AI-Recruiter.git"
+sandbox_link: "https://huggingface.co/spaces/sudha245/AI-Ranker
+
+"
 
 reproduce_command: "python rank.py --candidates ./candidates.jsonl --out ./submission.csv"
 
