@@ -61,22 +61,36 @@ ai-recruiter/
 
 ## Getting Started
 
-1. **Create a virtual environment** and install dependencies:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate   # Windows: venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-2. **Run the ranking pipeline**:
-   ```bash
-   python rank.py
-   ```
-   The command produces `outputs/submission.csv` with the ranked candidate list.
-3. **Launch the interactive UI**:
-   ```bash
-   python sandbox/app.py
-   ```
-   Open the displayed URL (e.g., `http://127.0.0.1:7860`) to upload candidates, input a job description, and start ranking.
+### 1. Setup Environment
+Create a virtual environment and install dependencies:
+```bash
+python -m venv venv
+source venv/bin/activate   # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+### 2. Run the Ranking Pipeline (CLI)
+You can run the ranker CLI using customizable arguments. The script dynamically handles both `.jsonl` (uncompressed) and `.jsonl.gz` (compressed) formats.
+
+```bash
+python rank.py --candidates data/raw/candidates.jsonl.gz --out outputs/submission.csv --jd data/raw/job_description.docx
+```
+
+#### CLI Flags:
+* `--candidates`: Path to the candidate pool file (defaults to `data/raw/candidates.jsonl.gz`).
+* `--out`: Path to save the output CSV file (defaults to `outputs/submission.csv`).
+* `--jd`: Path to the job description document (defaults to `data/raw/job_description.docx`).
+
+#### Robustness Features:
+* **Dynamic Embedding Generation**: The script checks if the input candidate size matches the precomputed `data/embeddings/candidate_embeddings.npy` file. If they match, it loads the embeddings instantly. If they do not match (e.g. when testing with a smaller subset), it automatically computes candidate embeddings on-the-fly so the process finishes without failing.
+* **BOM Protection (`utf-8-sig`)**: Handles line-by-line reading of `.jsonl` files even when they include a Byte Order Mark (BOM) common on Windows/PowerShell platforms.
+
+### 3. Launch the Interactive UI
+Launch the Gradio Web App to view a dashboard for candidate exploration:
+```bash
+python sandbox/app.py
+```
+Open the printed URL (e.g., `http://127.0.0.1:7860`) in your browser to interactively upload candidates and search.
 
 ---
 
