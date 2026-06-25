@@ -1,3 +1,14 @@
+---
+title: AI Recruiter
+emoji: 🧠
+colorFrom: indigo
+colorTo: slate
+sdk: gradio
+sdk_version: 4.36.1
+app_file: sandbox/app.py
+pinned: false
+---
+
 # AI Recruiter & Candidate Ranker
 
 ## Overview
