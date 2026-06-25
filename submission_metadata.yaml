@@ -18,9 +18,7 @@ team_members:
 # Code and reproducibility
 # ============================================================================
 github_repo: "https://github.com/Sudha2050/AI-Recruiter.git"
-sandbox_link: "https://huggingface.co/spaces/sudha245/AI-Ranker
-
-"
+sandbox_link: "https://huggingface.co/spaces/sudha245/AI-Ranker"
 
 reproduce_command: "python rank.py --candidates ./candidates.jsonl --out ./submission.csv"
 
