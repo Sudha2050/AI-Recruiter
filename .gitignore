@@ -41,3 +41,6 @@ sandbox/.gradio/
 # Logs & temp
 *.log
 *.tmp
+
+# Nested HF Spaces repository clone
+AI-Ranker/
