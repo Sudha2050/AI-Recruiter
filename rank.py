@@ -35,11 +35,19 @@ def main():
     parser.add_argument("--jd", type=str, default=str(settings.JD_FILE), help="Path to Job Description docx file")
     args = parser.parse_args()
 
+    # --- File existence checks ---
+    candidates_path = Path(args.candidates)
+    jd_path = Path(args.jd)
+
+    if not candidates_path.exists():
+        sys.exit(f"CRITICAL ERROR: Candidates file not found at '{candidates_path}'. Please check your file path.")
+    if not jd_path.exists():
+        sys.exit(f"CRITICAL ERROR: Job Description file not found at '{jd_path}'. Please check your file path.")
+
     start = time.time()
 
     # --- Load candidates ---
-    print(f"Loading candidates from {args.candidates}...")
-    candidates_path = Path(args.candidates)
+    print(f"Loading candidates from {candidates_path}...")
     candidates = load_candidates(candidates_path)
     print(f"Loaded {len(candidates)} candidates.")
 
@@ -122,8 +130,8 @@ def main():
         scaled = max(0.0, min(100.0, final * 100.0))
         scaled_scores.append((cand_id, scaled, cand))
 
-    # Sort by scaled score descending (using full precision), then candidate_id ascending
-    scaled_scores.sort(key=lambda x: (-x[1], x[0]))
+    # Sort by scaled score descending (using 2-decimal rounded precision), then candidate_id ascending
+    scaled_scores.sort(key=lambda x: (-round(x[1], 2), x[0]))
     top100 = scaled_scores[:100]
 
     # Generate output rows
@@ -138,7 +146,7 @@ def main():
         })
 
     out_path = Path(args.out)
-    out_path.parent.mkdir(exist_ok=True)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(rows).to_csv(out_path, index=False)
     print(f"Submission saved to {out_path}")
     print(f"Total runtime: {time.time() - start:.2f} seconds")
