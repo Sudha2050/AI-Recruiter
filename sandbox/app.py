@@ -380,8 +380,8 @@ def rank_candidates(jd_text: str, candidates: list, top_k: int = 100) -> pd.Data
     jd_tokens = tokenize(jd_text)
     bm25_scores = bm25.get_scores(jd_tokens)
 
-    # Pre-filter: keep top 5000 candidates using BM25 (highly optimized for 40k)
-    pre_filter_k = min(5000, len(candidates))
+    # Pre-filter: keep top 500 candidates using BM25 (highly optimized for 40k)
+    pre_filter_k = min(500, len(candidates))
     pre_filter_indices = np.argsort(bm25_scores)[::-1][:pre_filter_k]
     
     candidates_filtered = [candidates[i] for i in pre_filter_indices]
