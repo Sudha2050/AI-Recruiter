@@ -16,6 +16,7 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 import gradio as gr
+from rank_bm25 import BM25Okapi
 from sentence_transformers import SentenceTransformer, CrossEncoder
 
 print("Initializing Bi-Encoder model globally...")
@@ -348,10 +349,19 @@ def rank_candidates(jd_text: str, candidates: list, top_k: int = 100) -> pd.Data
 
     print(f"Total candidates: {len(candidates)}")
 
-    # 1. Bi-Encoder Semantic Retrieval
+    # 1. Hybrid Lexical & Semantic Retrieval
     print("Embedding Job Description and candidates...")
     corpus = [aggregate_profile_text(c) for c in candidates]
     
+    # A. BM25 Lexical Scoring
+    print("Computing BM25 lexical scores...")
+    tokenized_corpus = [tokenize(doc) for doc in corpus]
+    bm25 = BM25Okapi(tokenized_corpus)
+    jd_tokens = tokenize(jd_text)
+    bm25_scores = bm25.get_scores(jd_tokens)
+
+    # B. Bi-Encoder Semantic Scoring
+    print("Computing Bi-Encoder semantic scores...")
     # Encode JD and normalize
     jd_emb = bi_encoder.encode(jd_text, convert_to_numpy=True)
     jd_norm = jd_emb / np.linalg.norm(jd_emb)
@@ -370,12 +380,29 @@ def rank_candidates(jd_text: str, candidates: list, top_k: int = 100) -> pd.Data
     # Compute cosine similarity
     semantic_scores = np.dot(cand_embs, jd_norm)
 
+    # C. Min-Max Normalize and Combine Scores
+    bm25_min = bm25_scores.min()
+    bm25_max = bm25_scores.max()
+    if bm25_max > bm25_min:
+        norm_bm25 = (bm25_scores - bm25_min) / (bm25_max - bm25_min)
+    else:
+        norm_bm25 = np.zeros_like(bm25_scores)
+
+    sem_min = semantic_scores.min()
+    sem_max = semantic_scores.max()
+    if sem_max > sem_min:
+        norm_sem = (semantic_scores - sem_min) / (sem_max - sem_min)
+    else:
+        norm_sem = np.zeros_like(semantic_scores)
+
+    hybrid_scores = 0.3 * norm_bm25 + 0.7 * norm_sem
+
     top_k_coarse = min(2000, len(candidates))   # keep top 2000 candidates
-    print(f"Bi-Encoder retrieval: keeping top {top_k_coarse} candidates")
-    top_indices = np.argsort(semantic_scores)[::-1][:top_k_coarse]
+    print(f"Hybrid retrieval: keeping top {top_k_coarse} candidates")
+    top_indices = np.argsort(hybrid_scores)[::-1][:top_k_coarse]
     top_candidates = [candidates[i] for i in top_indices]
     top_texts = [corpus[i] for i in top_indices]
-    print(f"After Bi-Encoder retrieval: {len(top_candidates)} candidates passed to Cross-Encoder")
+    print(f"After Hybrid retrieval: {len(top_candidates)} candidates passed to Cross-Encoder")
 
     # 2. Cross‑Encoder re‑ranking
     print("Running Cross-Encoder prediction...")
@@ -470,7 +497,7 @@ def chatbot_response(message, history):
         cid = re.search(r'cand[_-]?\d{5,7}', lower, re.I).group(0).upper()
         return f"Please run a ranking first, then I can explain candidate {cid}."
     if 'how' in lower or 'work' in lower:
-        return "The system uses Bi‑Encoder semantic search → Cross‑Encoder re‑ranking → Structured scoring → Behavioral multiplier → Honeypot penalty. Scores are 0–100."
+        return "The system uses Hybrid (BM25 + Bi‑Encoder) retrieval → Cross‑Encoder re‑ranking → Structured scoring → Behavioral multiplier → Honeypot penalty. Scores are 0–100."
     if 'hello' in lower or 'hi' in lower:
         return "Hello! Upload a JD and candidates file, then ask me about results."
     return "I can help with: 'Explain CAND-00021', 'How does it work?', 'Compare CAND-00021 and CAND-00123'."
