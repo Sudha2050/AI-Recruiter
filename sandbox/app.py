@@ -595,7 +595,11 @@ css = """
 # ------------------------------------------------------------
 # Gradio UI layout
 # ------------------------------------------------------------
-with gr.Blocks(title="Redrob AI Ranker") as demo:
+with gr.Blocks(
+    title="Redrob AI Ranker",
+    theme=gr.themes.Default(primary_hue="indigo", neutral_hue="slate"),
+    css=css
+) as demo:
     with gr.Column(elem_classes=["header-card"]):
         gr.Markdown("""
         # 🧠 Intelligent Candidate Ranker (LLM‑powered)
@@ -659,7 +663,5 @@ with gr.Blocks(title="Redrob AI Ranker") as demo:
 # ------------------------------------------------------------
 if __name__ == "__main__":
     demo.launch(
-        share=True,
-        theme=gr.themes.Default(primary_hue="indigo", neutral_hue="slate"),
-        css=css
+        share=True
     )
