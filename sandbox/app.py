@@ -844,7 +844,17 @@ textarea:focus, .gr-textbox textarea:focus {
 # ------------------------------------------------------------
 # Gradio UI with Improved Styling
 # ------------------------------------------------------------
-with gr.Blocks(title="Redrob AI Ranker") as demo:
+try:
+    from gradio import __version__ as gradio_version
+    major_version = int(gradio_version.split(".")[0])
+except Exception:
+    major_version = 4
+
+blocks_kwargs = {"title": "Redrob AI Ranker"}
+if major_version < 6:
+    blocks_kwargs["css"] = CUSTOM_CSS
+
+with gr.Blocks(**blocks_kwargs) as demo:
     # Header
     gr.HTML("""
     <div class="main-header">
@@ -938,4 +948,7 @@ with gr.Blocks(title="Redrob AI Ranker") as demo:
 
 # Launch with custom CSS
 if __name__ == "__main__":
-    demo.launch(share=True, css=CUSTOM_CSS)
+    launch_kwargs = {"share": True}
+    if major_version >= 6:
+        launch_kwargs["css"] = CUSTOM_CSS
+    demo.launch(**launch_kwargs)
