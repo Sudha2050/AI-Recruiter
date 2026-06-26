@@ -13,6 +13,8 @@ def aggregate_profile_text(candidate: Dict[str, Any]) -> str:
     ]
     for career in candidate.get('career_history', []):
         parts.append(career.get('title', ''))
+        # Repeat the career description to give it higher importance/weight in the semantic embeddings
+        parts.append(career.get('description', ''))
         parts.append(career.get('description', ''))
     for skill in candidate.get('skills', []):
         parts.append(skill.get('name', ''))

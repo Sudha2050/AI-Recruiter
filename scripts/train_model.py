@@ -23,6 +23,24 @@ from src.ranking.stage1_filter import honeypot_penalty
 from sentence_transformers import SentenceTransformer
 
 
+def has_complex_projects(career_history: list) -> float:
+    complex_keywords = [
+        'predictive mechanism', 'supply chain', 'orchestrator', 'orchestrate', 
+        'feedback loop', 'sentiment analysis', 'predict sentiment', 'end-to-end',
+        'architecture', 'scalable system', 'deployed', 'optimized', 'infrastructure',
+        'production ml', 'pipeline design', 'distributed', 'reduced latency', 'saved cost'
+    ]
+    
+    score_bonus = 0.0
+    for job in career_history:
+        desc = job.get('description', '').lower()
+        matches = sum(1 for kw in complex_keywords if kw in desc)
+        if matches > 0:
+            score_bonus += min(0.15, matches * 0.05)
+            
+    return min(0.20, score_bonus)
+
+
 def build_features(candidate, semantic_score):
     """Return feature vector for training/inference."""
     profile = candidate['profile']
@@ -90,7 +108,7 @@ def main():
         features = build_features(cand, sem)
 
         # Target = comprehensive score used in inference
-        # (0.4*semantic + 0.6*structured) * behavioral_multiplier * honeypot
+        # (0.55*semantic + 0.45*structured) * behavioral_multiplier * honeypot
         structured_part = (
             0.15 * features[0] +   # title
             0.15 * features[1] +   # company
@@ -98,7 +116,17 @@ def main():
             0.15 * features[3] +   # skills
             0.05 * features[4]     # education
         )
-        base = 0.40 * sem + 0.60 * structured_part
+        
+        exp = cand['profile'].get('years_of_experience', 0)
+        project_bonus = 0.0
+        if 5.0 <= exp <= 9.0:
+            project_bonus = has_complex_projects(cand.get('career_history', []))
+            
+        normalized_structured = structured_part / 0.60
+        normalized_structured = min(1.0, normalized_structured + project_bonus)
+        structured_part = normalized_structured * 0.60
+
+        base = 0.55 * sem + 0.45 * structured_part
         mult = features[6]
         hp = features[7]
         target = base * mult * hp

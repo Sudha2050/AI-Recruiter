@@ -102,6 +102,8 @@ def aggregate_profile_text(candidate: dict) -> str:
     ]
     for career in candidate.get('career_history', []):
         parts.append(career.get('title', ''))
+        # Repeat the career description to give it higher importance/weight in the semantic embeddings
+        parts.append(career.get('description', ''))
         parts.append(career.get('description', ''))
     skills = candidate.get('skills', [])
     for skill in skills:
@@ -319,6 +321,24 @@ def generate_reasoning(candidate: dict, rank: int) -> str:
 # ------------------------------------------------------------
 # Main ranking pipeline
 # ------------------------------------------------------------
+def has_complex_projects(career_history: list) -> float:
+    complex_keywords = [
+        'predictive mechanism', 'supply chain', 'orchestrator', 'orchestrate', 
+        'feedback loop', 'sentiment analysis', 'predict sentiment', 'end-to-end',
+        'architecture', 'scalable system', 'deployed', 'optimized', 'infrastructure',
+        'production ml', 'pipeline design', 'distributed', 'reduced latency', 'saved cost'
+    ]
+    
+    score_bonus = 0.0
+    for job in career_history:
+        desc = job.get('description', '').lower()
+        matches = sum(1 for kw in complex_keywords if kw in desc)
+        if matches > 0:
+            score_bonus += min(0.15, matches * 0.05)
+            
+    return min(0.20, score_bonus)
+
+
 def rank_candidates(jd_text: str, candidates: list, top_k: int = 100) -> pd.DataFrame:
     start = time.time()
     if not candidates:
@@ -377,7 +397,7 @@ def rank_candidates(jd_text: str, candidates: list, top_k: int = 100) -> pd.Data
         exp = profile.get('years_of_experience', 0)
         exp_score = 1.0 if 5 <= exp <= 9 else (0.7 if 4 <= exp < 5 else (0.6 if 9 < exp <= 12 else 0.4))
 
-        skill_score = skill_depth_score(cand.get('skills', []))
+        skill_score = skill_depth_score(cand.get('skills', []), exp)
 
         education = cand.get('education', [])
         tier_w = {'tier_1': 1.0, 'tier_2': 0.8, 'tier_3': 0.6, 'tier_4': 0.4, 'unknown': 0.5}
@@ -393,7 +413,16 @@ def rank_candidates(jd_text: str, candidates: list, top_k: int = 100) -> pd.Data
             0.15 * skill_score +
             0.05 * edu_score
         )
-        base = 0.40 * semantic + 0.60 * structured_part
+        
+        project_bonus = 0.0
+        if 5.0 <= exp <= 9.0:
+            project_bonus = has_complex_projects(cand.get('career_history', []))
+            
+        normalized_structured = structured_part / 0.60
+        normalized_structured = min(1.0, normalized_structured + project_bonus)
+        structured_part = normalized_structured * 0.60
+
+        base = 0.55 * semantic + 0.45 * structured_part
         final = base * mult * hp
         final = max(0.0, min(1.0, final))
 

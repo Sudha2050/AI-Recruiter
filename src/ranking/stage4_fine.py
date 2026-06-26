@@ -184,21 +184,21 @@ def fine_score(candidate, semantic_score):
             project_bonus = has_complex_projects(career)
             
         experience_leadership = (
-            0.25 * exp_score +
-            0.25 * semantic_score +
-            0.25 * title_score +
+            0.20 * exp_score +
+            0.35 * semantic_score +
+            0.20 * title_score +
             0.15 * company_score +
             0.10 * prog_score
         )
         experience_leadership = min(1.0, experience_leadership + project_bonus)
         
-        # 2. Technical Assessments (35%)
+        # 2. Technical Assessments (25%)
         technical = 0.5 * skill_score + 0.5 * assessments_score
         
         # 3. Behavioral Interviews (20%)
         behavioral = 0.6 * (mult / 1.2) + 0.4 * interview_completion
         
-        score = 0.45 * experience_leadership + 0.35 * technical + 0.20 * behavioral
+        score = 0.55 * experience_leadership + 0.25 * technical + 0.20 * behavioral
 
     # Apply Honeypot penalty
     final = score * hp

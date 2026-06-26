@@ -57,10 +57,10 @@ def main():
     if emb_path.exists():
         # Load as a memory-mapped file to save RAM (on-demand loading)
         candidate_embs = np.load(emb_path, mmap_mode='r')
-        if len(candidate_embs) == len(candidates):
+        if len(candidate_embs) == len(candidates) and candidate_embs.shape[1] == settings.EMBEDDING_DIM:
             print(f"Loaded precomputed candidate embeddings of shape: {candidate_embs.shape} (mmap mode)")
         else:
-            print(f"Precomputed embeddings shape {candidate_embs.shape} does not match candidates count {len(candidates)}.")
+            print(f"Precomputed embeddings shape {candidate_embs.shape} does not match candidates count {len(candidates)} or dimension {settings.EMBEDDING_DIM}.")
             print("Generating candidate embeddings on-the-fly...")
             model = SentenceTransformer(settings.EMBEDDING_MODEL)
             from src.embeddings.builder import aggregate_profile_text
