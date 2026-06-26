@@ -888,6 +888,8 @@ with gr.Blocks(title="Redrob AI Ranker", css=CUSTOM_CSS) as demo:
                         label="",
                         interactive=False,
                         wrap=True,
+                        row_count=(100, "dynamic"),
+                        height=600,
                         elem_classes=["gr-dataframe"]
                     )
                     with gr.Row():
