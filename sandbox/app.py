@@ -157,6 +157,23 @@ def aggregate_profile_text_skills(candidate: dict) -> str:
     return ', '.join(skill_names)
 
 
+def aggregate_profile_text_bm25(candidate: dict) -> str:
+    profile = candidate.get('profile', {})
+    parts = [
+        profile.get('headline', ''),
+        profile.get('summary', '')
+    ]
+    for career in candidate.get('career_history', []):
+        parts.append(career.get('title', ''))
+    skills = candidate.get('skills', [])
+    for skill in skills:
+        if isinstance(skill, dict):
+            parts.append(skill.get('name', ''))
+        elif isinstance(skill, str):
+            parts.append(skill)
+    return ' '.join([p for p in parts if p])
+
+
 def tokenize(text: str):
     return text.lower().split()
 
@@ -391,7 +408,7 @@ def rank_candidates(jd_text: str, candidates: list, top_k: int = 100) -> pd.Data
 
     # 1. Coarse Lexical Retrieval (BM25) to select top 2000 candidates
     print("Computing BM25 lexical scores...")
-    corpus = [aggregate_profile_text(c) for c in candidates]
+    corpus = [aggregate_profile_text_bm25(c) for c in candidates]
     tokenized_corpus = [tokenize(doc) for doc in corpus]
     bm25 = BM25Okapi(tokenized_corpus)
     jd_tokens = tokenize(jd_text)
