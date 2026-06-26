@@ -429,7 +429,7 @@ def chatbot_response(message, history):
 # ------------------------------------------------------------
 # Gradio UI (hardcoded 100 candidates)
 # ------------------------------------------------------------
-def process_inputs(jd_text, candidate_file):
+def process_inputs(jd_text, candidate_file, team_id):
     empty = pd.DataFrame()
     if not jd_text.strip():
         return empty, "⚠️ Please enter a job description.", None
@@ -457,11 +457,24 @@ def process_inputs(jd_text, candidate_file):
         import traceback
         return empty, f"❌ Ranking error: {e}\n{traceback.format_exc()}", None
 
-    temp_dir = tempfile.mkdtemp()
-    csv_path = Path(temp_dir) / "team_xxx.csv"
-    df.to_csv(csv_path, index=False, encoding='utf-8')
+    # Determine filename base
+    if team_id and team_id.strip():
+        base_name = team_id.strip()
+    else:
+        import re
+        first_line = jd_text.strip().split('\n')[0]
+        role_name = re.sub(r'[^a-zA-Z0-9 ]', '', first_line)[:50]
+        role_name = role_name.replace(' ', '_')
+        if not role_name:
+            role_name = "candidate_rankings"
+        base_name = role_name
 
-    return df, f"✅ Ranking complete — top {len(df)} candidates ready. Filename: team_xxx.csv", str(csv_path)
+    # Save XLSX
+    xlsx_filename = f"{base_name}.xlsx"
+    xlsx_path = Path(tempfile.gettempdir()) / xlsx_filename
+    df.to_excel(xlsx_path, index=False, sheet_name="Top 100")
+
+    return df, f"✅ Ranking complete — top {len(df)} candidates ready. Filename: {xlsx_filename}", str(xlsx_path)
 
 
 # ------------------------------------------------------------
@@ -501,21 +514,42 @@ with gr.Blocks(title="Redrob AI Ranker") as demo:
         with gr.Row():
             with gr.Column(scale=1, elem_classes=["panel-box"]):
                 gr.Markdown("### 📂 Input")
-                jd_input = gr.Textbox(label="Job Description", lines=12,
-                                       placeholder="Paste the job description here...")
-                file_input = gr.File(label="Upload Candidates", file_types=[".json", ".jsonl", ".jsonl.gz"])
-                submit_btn = gr.Button("⚡ Rank Candidates", variant="primary", elem_classes=["primary-btn"])
+                team_id_input = gr.Textbox(
+                    label="Participant ID (for filename)",
+                    placeholder="e.g., team_123 (optional)"
+                )
+                jd_input = gr.Textbox(
+                    label="Job Description",
+                    lines=12,
+                    placeholder="Paste the job description here..."
+                )
+                file_input = gr.File(
+                    label="Upload Candidates",
+                    file_types=[".json", ".jsonl", ".jsonl.gz"]
+                )
+                submit_btn = gr.Button(
+                    "⚡ Rank Candidates",
+                    variant="primary",
+                    elem_classes=["primary-btn"]
+                )
 
             with gr.Column(scale=2, elem_classes=["panel-box"]):
                 gr.Markdown("### 📊 Results (Top 100)")
                 error_output = gr.Textbox(label="Status", interactive=False)
-                output_table = gr.Dataframe(label="Ranked Candidates", interactive=False, wrap=True)
-                download_btn = gr.DownloadButton(label="⬇️ Download CSV", elem_classes=["download-btn"])
+                output_table = gr.Dataframe(
+                    label="Ranked Candidates",
+                    interactive=False,
+                    wrap=True
+                )
+                download_xlsx_btn = gr.DownloadButton(
+                    label="⬇️ Download XLSX",
+                    elem_classes=["download-btn"]
+                )
 
         submit_btn.click(
             fn=process_inputs,
-            inputs=[jd_input, file_input],
-            outputs=[output_table, error_output, download_btn]
+            inputs=[jd_input, file_input, team_id_input],
+            outputs=[output_table, error_output, download_xlsx_btn]
         )
 
     with gr.Tab("Chat Assistant"):
