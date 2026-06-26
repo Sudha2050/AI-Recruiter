@@ -838,7 +838,7 @@ textarea:focus, .gr-textbox textarea:focus {
 # ------------------------------------------------------------
 # Gradio UI with Improved Styling
 # ------------------------------------------------------------
-with gr.Blocks(title="Redrob AI Ranker") as demo:
+with gr.Blocks(title="Redrob AI Ranker", css=CUSTOM_CSS) as demo:
     # Header
     gr.HTML("""
     <div class="main-header">
@@ -931,4 +931,4 @@ with gr.Blocks(title="Redrob AI Ranker") as demo:
 
 # Launch with custom CSS
 if __name__ == "__main__":
-    demo.launch(share=True, css=CUSTOM_CSS)
+    demo.launch(share=True)
