@@ -552,35 +552,35 @@ def chatbot_response(message, history):
 
 
 # ------------------------------------------------------------
-# Gradio UI (hardcoded 100 candidates)
+# Gradio UI
 # ------------------------------------------------------------
 def process_inputs(jd_text, candidate_file, team_id):
     empty = pd.DataFrame()
     if not jd_text.strip():
-        return empty, "⚠️ Please enter a job description.", None
+        return empty, "⚠️ Please enter a job description.", None, None
     if candidate_file is None:
-        return empty, "⚠️ Please upload a candidates file.", None
+        return empty, "⚠️ Please upload a candidates file.", None, None
 
     filepath = Path(candidate_file.name)
     try:
         candidates = load_candidates_from_file(filepath)
     except Exception as e:
-        return empty, f"❌ Error loading file: {e}", None
+        return empty, f"❌ Error loading file: {e}", None, None
 
     if len(candidates) == 0:
-        return empty, "⚠️ No candidates found in the file.", None
+        return empty, "⚠️ No candidates found in the file.", None, None
 
     required_top = ['profile', 'career_history', 'skills', 'redrob_signals']
     missing = [f for f in required_top if f not in candidates[0]]
     if missing:
-        return empty, f"❌ Invalid schema — missing fields: {missing}", None
+        return empty, f"❌ Invalid schema — missing fields: {missing}", None, None
 
     try:
         # Always return exactly 100 candidates
         df = rank_candidates(jd_text, candidates, top_k=100)
     except Exception as e:
         import traceback
-        return empty, f"❌ Ranking error: {e}\n{traceback.format_exc()}", None
+        return empty, f"❌ Ranking error: {e}\n{traceback.format_exc()}", None, None
 
     # Determine filename base
     if team_id and team_id.strip():
@@ -594,251 +594,341 @@ def process_inputs(jd_text, candidate_file, team_id):
             role_name = "candidate_rankings"
         base_name = role_name
 
+    # Save CSV
+    csv_filename = f"{base_name}.csv"
+    csv_path = Path(tempfile.gettempdir()) / csv_filename
+    df.to_csv(csv_path, index=False)
+
     # Save XLSX
     xlsx_filename = f"{base_name}.xlsx"
     xlsx_path = Path(tempfile.gettempdir()) / xlsx_filename
     df.to_excel(xlsx_path, index=False, sheet_name="Top 100")
 
-    return df, f"✅ Ranking complete — top {len(df)} candidates ready. Filename: {xlsx_filename}", str(xlsx_path)
+    return df, f"✅ Ranking complete — top {len(df)} candidates ready. Filenames: {csv_filename}, {xlsx_filename}", str(csv_path), str(xlsx_path)
 
 
 # ------------------------------------------------------------
-# Custom CSS
+# Custom CSS (Modern, Premium Look)
 # ------------------------------------------------------------
-css = """
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+CUSTOM_CSS = """
+/* Import a modern font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+body {
+    background: #0b0e14 !important;
+    font-family: 'Inter', sans-serif !important;
+}
 
 .gradio-container {
-    font-family: 'Plus Jakarta Sans', sans-serif !important;
-    background: radial-gradient(circle at 10% 20%, rgb(18, 16, 32) 0%, rgb(7, 5, 14) 90%) !important;
-    color: #e2e8f0 !important;
+    max-width: 1400px !important;
+    margin: auto !important;
+    padding: 20px !important;
+    background: transparent !important;
 }
 
-/* Custom Header with animated background and glowing border */
-.header-card {
-    background: linear-gradient(135deg, rgba(88, 28, 135, 0.45) 0%, rgba(30, 27, 75, 0.6) 100%) !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
-    border: 1px solid rgba(139, 92, 246, 0.25) !important;
-    border-radius: 20px !important;
-    padding: 2.5rem !important;
-    margin-bottom: 2rem !important;
-    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7), 0 0 15px rgba(139, 92, 246, 0.15) !important;
+/* Main header with gradient */
+.main-header {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e1b4b 100%);
+    border-radius: 20px;
+    padding: 2rem 2.5rem;
+    margin-bottom: 2rem;
+    border: 1px solid rgba(255,255,255,0.06);
+    box-shadow: 0 20px 40px -12px rgba(0,0,0,0.5);
+    position: relative;
+    overflow: hidden;
+}
+.main-header::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%);
+    border-radius: 50%;
+}
+.main-header h1 {
+    font-size: 2.6rem;
+    font-weight: 800;
+    color: white;
+    margin: 0;
+    letter-spacing: -0.5px;
+    background: linear-gradient(to right, #c7d2fe, #818cf8, #c084fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.main-header p {
+    color: #94a3b8;
+    font-size: 1.1rem;
+    margin: 0.5rem 0 0 0;
+    font-weight: 400;
+}
+.main-header .badge {
+    display: inline-block;
+    background: rgba(99,102,241,0.2);
+    color: #a5b4fc;
+    padding: 0.2rem 1rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-top: 0.5rem;
+    border: 1px solid rgba(99,102,241,0.3);
 }
 
-.header-card h1 {
-    font-family: 'Outfit', sans-serif !important;
-    font-size: 2.6rem !important;
-    font-weight: 700 !important;
-    letter-spacing: -0.03em !important;
-    background: linear-gradient(to right, #c084fc, #6366f1, #38bdf8) !important;
-    -webkit-background-clip: text !important;
-    -webkit-text-fill-color: transparent !important;
-    margin: 0 0 0.75rem 0 !important;
-    text-shadow: 0 0 40px rgba(139, 92, 246, 0.2) !important;
-}
-
-.header-card p {
-    font-size: 1.1rem !important;
-    color: #cbd5e1 !important;
-    line-height: 1.6 !important;
-    margin: 0 !important;
-}
-
-/* Beautiful panels using glassmorphism */
+/* Card panels */
 .panel-box {
-    background: rgba(17, 24, 39, 0.5) !important;
-    backdrop-filter: blur(8px) !important;
-    -webkit-backdrop-filter: blur(8px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.05) !important;
-    border-radius: 20px !important;
-    padding: 1.75rem !important;
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2) !important;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    background: #1a1e2b !important;
+    border-radius: 16px !important;
+    border: 1px solid #2d3348 !important;
+    padding: 1.5rem !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2) !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
-
 .panel-box:hover {
-    border-color: rgba(99, 102, 241, 0.2) !important;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.3) !important;
 }
 
-/* Input Fields styling */
-.panel-box textarea, .panel-box input {
-    background-color: rgba(15, 23, 42, 0.8) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    color: #f8fafc !important;
-    border-radius: 12px !important;
-    font-family: 'Plus Jakarta Sans', sans-serif !important;
+/* Input fields */
+textarea, input[type="file"], .gr-textbox textarea {
+    background: #0f1320 !important;
+    border: 1px solid #2d3348 !important;
+    border-radius: 10px !important;
+    color: #e2e8f0 !important;
+    padding: 12px 16px !important;
+    font-size: 0.95rem !important;
+    transition: border 0.2s;
 }
-
-.panel-box textarea:focus, .panel-box input:focus {
-    border-color: #8b5cf6 !important;
-    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2) !important;
+textarea:focus, .gr-textbox textarea:focus {
+    border-color: #818cf8 !important;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important;
 }
 
 /* Buttons */
 .primary-btn {
-    background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%) !important;
+    background: linear-gradient(135deg, #6366f1, #4f46e5) !important;
     border: none !important;
-    color: white !important;
-    font-weight: 600 !important;
     border-radius: 12px !important;
-    padding: 0.75rem 1.5rem !important;
-    box-shadow: 0 4px 14px rgba(124, 58, 237, 0.3) !important;
-    transition: all 0.2s ease !important;
+    font-weight: 700 !important;
+    font-size: 1.05rem !important;
+    padding: 0.8rem 2rem !important;
+    color: white !important;
+    transition: all 0.2s !important;
+    box-shadow: 0 4px 14px rgba(99,102,241,0.35) !important;
 }
-
 .primary-btn:hover {
     transform: translateY(-2px) !important;
-    box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5) !important;
+    box-shadow: 0 6px 24px rgba(99,102,241,0.5) !important;
 }
-
 .primary-btn:active {
     transform: translateY(0) !important;
 }
 
 .download-btn {
-    background: linear-gradient(135deg, #059669 0%, #0d9488 100%) !important;
+    background: linear-gradient(135deg, #0d9488, #0f766e) !important;
     border: none !important;
-    color: white !important;
-    font-weight: 600 !important;
     border-radius: 12px !important;
-    padding: 0.75rem 1.5rem !important;
-    box-shadow: 0 4px 14px rgba(5, 150, 105, 0.3) !important;
-    transition: all 0.2s ease !important;
+    font-weight: 600 !important;
+    padding: 0.6rem 1.8rem !important;
+    color: white !important;
+    transition: all 0.2s !important;
+    box-shadow: 0 4px 14px rgba(13,148,136,0.3) !important;
 }
-
 .download-btn:hover {
     transform: translateY(-2px) !important;
-    box-shadow: 0 6px 20px rgba(5, 150, 105, 0.5) !important;
+    box-shadow: 0 6px 24px rgba(13,148,136,0.45) !important;
 }
 
-/* Results table */
-.panel-box table {
-    border-collapse: separate !important;
-    border-spacing: 0 8px !important;
-}
-
-.panel-box tr {
-    background: rgba(30, 41, 59, 0.4) !important;
-    border-radius: 8px !important;
-    transition: all 0.2s ease !important;
-}
-
-.panel-box tr:hover {
-    background: rgba(30, 41, 59, 0.8) !important;
-}
-
-.panel-box th {
+/* Tabs */
+.tab-nav button {
     background: transparent !important;
     color: #94a3b8 !important;
-    text-transform: uppercase !important;
-    font-size: 0.8rem !important;
     font-weight: 600 !important;
-    letter-spacing: 0.05em !important;
-    border-bottom: 2px solid rgba(255, 255, 255, 0.05) !important;
+    padding: 0.6rem 1.2rem !important;
+    border-radius: 999px !important;
+    border: 1px solid transparent !important;
+    transition: all 0.2s !important;
 }
-
-.panel-box td {
-    border-bottom: none !important;
+.tab-nav button:hover {
+    color: #e2e8f0 !important;
+    background: rgba(255,255,255,0.05) !important;
 }
-
-/* Tabs styling */
-.tabs {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
-    margin-bottom: 1.5rem !important;
-}
-
-.tab-nav button {
-    font-family: 'Outfit', sans-serif !important;
-    font-size: 1.1rem !important;
-    color: #94a3b8 !important;
-    border-bottom: 2px solid transparent !important;
-    transition: all 0.2s ease !important;
-}
-
 .tab-nav button.selected {
-    color: #a78bfa !important;
-    border-bottom: 2px solid #a78bfa !important;
+    background: #6366f1 !important;
+    color: white !important;
+    border-color: #6366f1 !important;
+    box-shadow: 0 4px 12px rgba(99,102,241,0.3) !important;
 }
 
-/* Custom styling for status box */
-.status-box {
-    border-left: 4px solid #8b5cf6 !important;
-    background: rgba(139, 92, 246, 0.05) !important;
+/* Dataframe */
+.gr-dataframe table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+}
+.gr-dataframe th {
+    background: #1e293b !important;
+    color: #e2e8f0 !important;
+    font-weight: 600 !important;
+    padding: 12px 16px !important;
+    border: none !important;
+}
+.gr-dataframe td {
+    background: #0f1320 !important;
+    color: #e2e8f0 !important;
+    padding: 12px 16px !important;
+    border-bottom: 1px solid #1e293b !important;
+}
+.gr-dataframe tr:hover td {
+    background: #1a1e2b !important;
+}
+
+/* Status text */
+.status-card {
+    background: #1e293b !important;
+    border-left: 4px solid #6366f1 !important;
+    padding: 1rem !important;
+    border-radius: 8px !important;
+    color: #e2e8f0 !important;
+    font-weight: 500 !important;
+}
+.status-error {
+    border-left-color: #ef4444 !important;
+}
+.status-success {
+    border-left-color: #22c55e !important;
+}
+
+/* Chat */
+.chat-messages {
+    background: #0f1320 !important;
+    border-radius: 12px !important;
+    padding: 1rem !important;
+    max-height: 300px !important;
+    overflow-y: auto !important;
+}
+.message.user {
+    color: #a5b4fc !important;
+}
+.message.bot {
+    color: #e2e8f0 !important;
+}
+
+/* Footer */
+.pipeline-footer {
+    background: #1a1e2b !important;
+    border-radius: 16px !important;
+    padding: 1.5rem !important;
+    margin-top: 2rem !important;
+    border: 1px solid #2d3348 !important;
+    color: #94a3b8 !important;
+}
+.pipeline-footer strong {
+    color: #e2e8f0 !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .main-header h1 { font-size: 1.8rem; }
+    .main-header { padding: 1.5rem; }
 }
 """
 
 # ------------------------------------------------------------
-# Gradio UI layout
+# Gradio UI with Improved Styling
 # ------------------------------------------------------------
-with gr.Blocks(
-    title="Redrob AI Ranker",
-    theme=gr.themes.Glass(primary_hue="purple", secondary_hue="indigo", neutral_hue="slate"),
-    css=css
-) as demo:
-    with gr.Column(elem_classes=["header-card"]):
-        gr.Markdown("""
-        # 🧠 Intelligent Candidate Ranker (LLM‑powered)
-        Paste a job description and upload a candidate dataset (**JSON / JSONL / JSONL.GZ**).
-        Always returns the **top 100** candidates (scores 0–100).
-        """)
+with gr.Blocks(title="Redrob AI Ranker") as demo:
+    # Header
+    gr.HTML("""
+    <div class="main-header">
+        <h1>🧠 Redrob AI Ranker</h1>
+        <p>Intelligent Candidate Discovery &amp; Ranking — powered by LLM and behavioral signals</p>
+        <div class="badge">⚡ 4‑stage cascade · CPU‑only · under 30s</div>
+    </div>
+    """)
 
-    with gr.Tab("Ranking"):
-        with gr.Row():
-            with gr.Column(scale=1, elem_classes=["panel-box"]):
-                gr.Markdown("### 📂 Input")
-                team_id_input = gr.Textbox(
-                    label="Participant ID (for filename)",
-                    placeholder="e.g., team_123 (optional)"
-                )
-                jd_input = gr.Textbox(
-                    label="Job Description",
-                    lines=12,
-                    placeholder="Paste the job description here..."
-                )
-                file_input = gr.File(
-                    label="Upload Candidates",
-                    file_types=[".json", ".jsonl", ".jsonl.gz"]
-                )
-                submit_btn = gr.Button(
-                    "⚡ Rank Candidates",
-                    variant="primary",
-                    elem_classes=["primary-btn"]
+    with gr.Tabs():
+        with gr.TabItem("🚀 Ranking", elem_id="tab-rank"):
+            with gr.Row():
+                # Left: Inputs
+                with gr.Column(scale=1, elem_classes=["panel-box"]):
+                    gr.Markdown("### 📂 Input Configuration")
+                    team_id_input = gr.Textbox(
+                        label="Team ID (optional, for filename)",
+                        placeholder="e.g., team_123",
+                        elem_classes=["input-field"]
+                    )
+                    jd_input = gr.Textbox(
+                        label="Job Description",
+                        lines=12,
+                        placeholder="Paste the full job description here...",
+                        elem_classes=["input-field"]
+                    )
+                    file_input = gr.File(
+                        label="Upload Candidates (JSON / JSONL / JSONL.GZ)",
+                        file_types=[".json", ".jsonl", ".jsonl.gz"],
+                        elem_classes=["input-field"]
+                    )
+                    submit_btn = gr.Button(
+                        "⚡ Rank Candidates",
+                        variant="primary",
+                        elem_classes=["primary-btn"]
+                    )
+
+                # Right: Results
+                with gr.Column(scale=2, elem_classes=["panel-box"]):
+                    gr.Markdown("### 📊 Results (Top 100)")
+                    error_output = gr.Textbox(
+                        label="Status",
+                        interactive=False,
+                        elem_classes=["status-card"]
+                    )
+                    output_table = gr.Dataframe(
+                        label="",
+                        interactive=False,
+                        wrap=True,
+                        elem_classes=["gr-dataframe"]
+                    )
+                    with gr.Row():
+                        download_csv_btn = gr.DownloadButton(
+                            label="⬇️ Download CSV",
+                            elem_classes=["download-btn"]
+                        )
+                        download_xlsx_btn = gr.DownloadButton(
+                            label="⬇️ Download XLSX",
+                            elem_classes=["download-btn"]
+                        )
+
+            submit_btn.click(
+                fn=process_inputs,
+                inputs=[jd_input, file_input, team_id_input],
+                outputs=[output_table, error_output, download_csv_btn, download_xlsx_btn]
+            )
+
+        with gr.TabItem("💬 Chat Assistant"):
+            with gr.Column(elem_classes=["panel-box"]):
+                gr.Markdown("""
+                ### 💬 Ask about the ranking
+                Try these examples:
+                - `Explain candidate CAND-00021`
+                - `Compare CAND-00021 and CAND-00123`
+                - `How does the algorithm work?`
+                """)
+                chatbot = gr.ChatInterface(
+                    fn=chatbot_response,
+                    title="Ranking Assistant"
                 )
 
-            with gr.Column(scale=2, elem_classes=["panel-box"]):
-                gr.Markdown("### 📊 Results (Top 100)")
-                error_output = gr.Textbox(label="Status", interactive=False)
-                output_table = gr.Dataframe(
-                    label="Ranked Candidates",
-                    interactive=False,
-                    wrap=True
-                )
-                download_xlsx_btn = gr.DownloadButton(
-                    label="⬇️ Download XLSX",
-                    elem_classes=["download-btn"]
-                )
+    # Footer
+    gr.HTML("""
+    <div class="pipeline-footer">
+        <strong>⚙️ Pipeline</strong> BM25 → Bi‑Encoder Ensemble (general + skills) → Structured Scoring → Behavioral Multiplier → Honeypot Penalty &nbsp;|&nbsp; 
+        <strong>Score:</strong> (0.4×semantic + 0.6×structured) × behavioral × honeypot &nbsp;|&nbsp; 
+        <strong>Output:</strong> CSV / XLSX with top 100 candidates
+    </div>
+    """)
 
-        submit_btn.click(
-            fn=process_inputs,
-            inputs=[jd_input, file_input, team_id_input],
-            outputs=[output_table, error_output, download_xlsx_btn]
-        )
-
-    with gr.Tab("Chat Assistant"):
-        with gr.Column(elem_classes=["panel-box"]):
-            gr.Markdown("""
-            ### 💬 Ask about the ranking
-            **Examples:**  
-            - `Explain candidate CAND-00021`  
-            - `Compare CAND-00021 and CAND-00123`  
-            - `How does the algorithm work?`
-            """)
-            chatbot = gr.ChatInterface(fn=chatbot_response, title="Ranking Assistant")
-
-# ------------------------------------------------------------
+# Launch with custom CSS
 if __name__ == "__main__":
-    demo.launch(
-        share=True
-    )
+    demo.launch(share=True, css=CUSTOM_CSS)
