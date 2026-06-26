@@ -25,7 +25,7 @@ The system features a **Dynamic Category-Based Scoring System** that adapts eval
 - **Multi-Stage Ranking Pipeline**
   1. **Stage 1 – Honeypot & Trap Filter**: Removes fictional companies, impossible timelines, and ghost profiles. Freshers bypass strict keyword-stuffer checks.
   2. **Stage 2 – Coarse Ranking**: High-speed heuristic scoring using job-specific criteria (titles, company tiers, skill depth) to select the top 5,000 candidates.
-  3. **Stage 3 – Semantic Ranking**: BM25 lexical filtering followed by semantic similarity search with Sentence-Transformer embeddings (`all-MiniLM-L6-v2`) to pick the top 500 candidates.
+  3. **Stage 3 – Semantic Ranking**: Semantic similarity search using Sentence-Transformer dense embeddings (`all-mpnet-base-v2`) to pick the top 500 candidates.
   4. **Stage 4 – Fine Ranking**: Category-aware weighted evaluation integrating work experience, academic background, assessments, and soft-skill metrics.
 - **Interactive UI** – Gradio dashboard (`sandbox/app.py`) for uploading candidate JSON, entering job descriptions, and downloading ranking spreadsheets.
 - **Automated Explanations** – Generates concise, honest reasoning statements for each ranked candidate.

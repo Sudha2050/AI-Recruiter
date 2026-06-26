@@ -16,8 +16,10 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 import gradio as gr
-from rank_bm25 import BM25Okapi
-from sentence_transformers import CrossEncoder
+from sentence_transformers import SentenceTransformer, CrossEncoder
+
+print("Initializing Bi-Encoder model globally...")
+bi_encoder = SentenceTransformer('all-mpnet-base-v2')
 
 print("Initializing Cross-Encoder model globally...")
 cross_encoder = CrossEncoder(
@@ -346,21 +348,34 @@ def rank_candidates(jd_text: str, candidates: list, top_k: int = 100) -> pd.Data
 
     print(f"Total candidates: {len(candidates)}")
 
-    # 1. BM25 retrieval
-    print("Building BM25 index...")
+    # 1. Bi-Encoder Semantic Retrieval
+    print("Embedding Job Description and candidates...")
     corpus = [aggregate_profile_text(c) for c in candidates]
-    tokenized_corpus = [tokenize(doc) for doc in corpus]
-    bm25 = BM25Okapi(tokenized_corpus)
+    
+    # Encode JD and normalize
+    jd_emb = bi_encoder.encode(jd_text, convert_to_numpy=True)
+    jd_norm = jd_emb / np.linalg.norm(jd_emb)
 
-    jd_tokens = tokenize(jd_text)
-    bm25_scores = bm25.get_scores(jd_tokens)
+    # Encode Candidate Corpus and normalize
+    raw_embs = bi_encoder.encode(
+        corpus,
+        batch_size=64,
+        show_progress_bar=True,
+        convert_to_numpy=True
+    )
+    norms = np.linalg.norm(raw_embs, axis=1, keepdims=True)
+    norms = np.where(norms == 0, 1.0, norms)
+    cand_embs = raw_embs / norms
+
+    # Compute cosine similarity
+    semantic_scores = np.dot(cand_embs, jd_norm)
 
     top_k_coarse = min(2000, len(candidates))   # keep top 2000 candidates
-    print(f"BM25: keeping top {top_k_coarse} candidates")
-    top_indices = np.argsort(bm25_scores)[::-1][:top_k_coarse]
+    print(f"Bi-Encoder retrieval: keeping top {top_k_coarse} candidates")
+    top_indices = np.argsort(semantic_scores)[::-1][:top_k_coarse]
     top_candidates = [candidates[i] for i in top_indices]
     top_texts = [corpus[i] for i in top_indices]
-    print(f"After BM25: {len(top_candidates)} candidates passed to Cross-Encoder")
+    print(f"After Bi-Encoder retrieval: {len(top_candidates)} candidates passed to Cross-Encoder")
 
     # 2. Cross‑Encoder re‑ranking
     print("Running Cross-Encoder prediction...")
@@ -455,7 +470,7 @@ def chatbot_response(message, history):
         cid = re.search(r'cand[_-]?\d{5,7}', lower, re.I).group(0).upper()
         return f"Please run a ranking first, then I can explain candidate {cid}."
     if 'how' in lower or 'work' in lower:
-        return "The system uses BM25 → Cross‑Encoder → Structured scoring → Behavioral multiplier → Honeypot penalty. Scores are 0–100."
+        return "The system uses Bi‑Encoder semantic search → Cross‑Encoder re‑ranking → Structured scoring → Behavioral multiplier → Honeypot penalty. Scores are 0–100."
     if 'hello' in lower or 'hi' in lower:
         return "Hello! Upload a JD and candidates file, then ask me about results."
     return "I can help with: 'Explain CAND-00021', 'How does it work?', 'Compare CAND-00021 and CAND-00123'."
