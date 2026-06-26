@@ -606,22 +606,167 @@ def process_inputs(jd_text, candidate_file, team_id):
 # Custom CSS
 # ------------------------------------------------------------
 css = """
-.gradio-container { font-family: 'Inter', sans-serif; }
-.header-card {
-    background: linear-gradient(135deg, #4f46e5 0%, #312e81 100%) !important;
-    border-radius: 16px !important;
-    padding: 2rem !important;
-    margin-bottom: 1.5rem !important;
-    color: white !important;
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+
+.gradio-container {
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    background: radial-gradient(circle at 10% 20%, rgb(18, 16, 32) 0%, rgb(7, 5, 14) 90%) !important;
+    color: #e2e8f0 !important;
 }
-.header-card h1 { font-size: 2.2rem !important; font-weight: 700 !important; color: white !important; margin: 0 0 0.5rem 0 !important; }
-.header-card p { font-size: 1rem !important; color: #e0e7ff !important; margin: 0 !important; }
-.primary-btn { background: linear-gradient(135deg, #4f46e5, #4338ca) !important; border: none !important; }
-.primary-btn:hover { transform: translateY(-2px) !important; box-shadow: 0 6px 20px rgba(79,70,229,0.4) !important; }
-.download-btn { background: linear-gradient(135deg, #0d9488, #0f766e) !important; border: none !important; }
-.download-btn:hover { transform: translateY(-2px) !important; box-shadow: 0 6px 20px rgba(13,148,136,0.4) !important; }
-.panel-box { border-radius: 16px !important; border: 1px solid #e2e8f0 !important; padding: 1.5rem !important; background: white !important; }
-.dark .panel-box { border-color: #334155 !important; background: #1e293b !important; }
+
+/* Custom Header with animated background and glowing border */
+.header-card {
+    background: linear-gradient(135deg, rgba(88, 28, 135, 0.45) 0%, rgba(30, 27, 75, 0.6) 100%) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(139, 92, 246, 0.25) !important;
+    border-radius: 20px !important;
+    padding: 2.5rem !important;
+    margin-bottom: 2rem !important;
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7), 0 0 15px rgba(139, 92, 246, 0.15) !important;
+}
+
+.header-card h1 {
+    font-family: 'Outfit', sans-serif !important;
+    font-size: 2.6rem !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.03em !important;
+    background: linear-gradient(to right, #c084fc, #6366f1, #38bdf8) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    margin: 0 0 0.75rem 0 !important;
+    text-shadow: 0 0 40px rgba(139, 92, 246, 0.2) !important;
+}
+
+.header-card p {
+    font-size: 1.1rem !important;
+    color: #cbd5e1 !important;
+    line-height: 1.6 !important;
+    margin: 0 !important;
+}
+
+/* Beautiful panels using glassmorphism */
+.panel-box {
+    background: rgba(17, 24, 39, 0.5) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-radius: 20px !important;
+    padding: 1.75rem !important;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.panel-box:hover {
+    border-color: rgba(99, 102, 241, 0.2) !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Input Fields styling */
+.panel-box textarea, .panel-box input {
+    background-color: rgba(15, 23, 42, 0.8) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #f8fafc !important;
+    border-radius: 12px !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+}
+
+.panel-box textarea:focus, .panel-box input:focus {
+    border-color: #8b5cf6 !important;
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2) !important;
+}
+
+/* Buttons */
+.primary-btn {
+    background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%) !important;
+    border: none !important;
+    color: white !important;
+    font-weight: 600 !important;
+    border-radius: 12px !important;
+    padding: 0.75rem 1.5rem !important;
+    box-shadow: 0 4px 14px rgba(124, 58, 237, 0.3) !important;
+    transition: all 0.2s ease !important;
+}
+
+.primary-btn:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5) !important;
+}
+
+.primary-btn:active {
+    transform: translateY(0) !important;
+}
+
+.download-btn {
+    background: linear-gradient(135deg, #059669 0%, #0d9488 100%) !important;
+    border: none !important;
+    color: white !important;
+    font-weight: 600 !important;
+    border-radius: 12px !important;
+    padding: 0.75rem 1.5rem !important;
+    box-shadow: 0 4px 14px rgba(5, 150, 105, 0.3) !important;
+    transition: all 0.2s ease !important;
+}
+
+.download-btn:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 20px rgba(5, 150, 105, 0.5) !important;
+}
+
+/* Results table */
+.panel-box table {
+    border-collapse: separate !important;
+    border-spacing: 0 8px !important;
+}
+
+.panel-box tr {
+    background: rgba(30, 41, 59, 0.4) !important;
+    border-radius: 8px !important;
+    transition: all 0.2s ease !important;
+}
+
+.panel-box tr:hover {
+    background: rgba(30, 41, 59, 0.8) !important;
+}
+
+.panel-box th {
+    background: transparent !important;
+    color: #94a3b8 !important;
+    text-transform: uppercase !important;
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.05em !important;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+.panel-box td {
+    border-bottom: none !important;
+}
+
+/* Tabs styling */
+.tabs {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    margin-bottom: 1.5rem !important;
+}
+
+.tab-nav button {
+    font-family: 'Outfit', sans-serif !important;
+    font-size: 1.1rem !important;
+    color: #94a3b8 !important;
+    border-bottom: 2px solid transparent !important;
+    transition: all 0.2s ease !important;
+}
+
+.tab-nav button.selected {
+    color: #a78bfa !important;
+    border-bottom: 2px solid #a78bfa !important;
+}
+
+/* Custom styling for status box */
+.status-box {
+    border-left: 4px solid #8b5cf6 !important;
+    background: rgba(139, 92, 246, 0.05) !important;
+}
 """
 
 # ------------------------------------------------------------
@@ -629,7 +774,7 @@ css = """
 # ------------------------------------------------------------
 with gr.Blocks(
     title="Redrob AI Ranker",
-    theme=gr.themes.Default(primary_hue="indigo", neutral_hue="slate"),
+    theme=gr.themes.Glass(primary_hue="purple", secondary_hue="indigo", neutral_hue="slate"),
     css=css
 ) as demo:
     with gr.Column(elem_classes=["header-card"]):
