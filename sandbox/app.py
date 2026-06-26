@@ -3,6 +3,14 @@ from pathlib import Path
 import warnings
 warnings.filterwarnings("ignore", message="'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated")
 
+# Silence asyncio selector unraisable exceptions on process shutdown/reload
+def custom_unraisable_hook(unraisable):
+    if unraisable.exc_type is ValueError and "Invalid file descriptor" in str(unraisable.exc_value):
+        return
+    sys.__unraisablehook__(unraisable)
+
+sys.unraisablehook = custom_unraisable_hook
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
