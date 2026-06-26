@@ -132,11 +132,17 @@ def company_tier(company: str) -> str:
 # ------------------------------------------------------------
 # Skill depth score
 # ------------------------------------------------------------
-def skill_depth_score(skills: list) -> float:
+ENTRY_LEVEL_SKILLS = {'nltk', 'nlp', 'python', 'basic python', 'programming', 'software engineering'}
+
+def skill_depth_score(skills: list, years_exp: float = 0.0) -> float:
     total = 0.0
     count = 0
+    is_experienced_5_to_9 = (5.0 <= years_exp <= 9.0)
     for s in skills:
         name = s.get('name', '').lower()
+        if is_experienced_5_to_9:
+            if name in ENTRY_LEVEL_SKILLS or any(basic in name for basic in ['nltk', 'basic python']):
+                continue
         if not any(term in name for term in RELEVANT_SKILLS):
             continue
         prof = {'beginner': 0.4, 'intermediate': 0.7, 'advanced': 1.0, 'expert': 1.2}.get(s.get('proficiency'), 0.5)

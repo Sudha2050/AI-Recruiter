@@ -40,7 +40,7 @@ def build_features(candidate, semantic_score):
     exp = profile.get('years_of_experience', 0)
     exp_score = 1.0 if 5 <= exp <= 9 else (0.7 if 4 <= exp < 5 else (0.6 if 9 < exp <= 12 else 0.4))
 
-    skill_score = skill_depth_score(candidate.get('skills', []))
+    skill_score = skill_depth_score(candidate.get('skills', []), exp)
 
     education = candidate.get('education', [])
     tier_w = {'tier_1':1.0, 'tier_2':0.8, 'tier_3':0.6, 'tier_4':0.4, 'unknown':0.5}

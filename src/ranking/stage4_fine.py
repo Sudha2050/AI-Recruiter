@@ -44,7 +44,7 @@ def build_feature_vector(candidate, semantic_score):
     exp_score = 1.0 if 5 <= exp <= 9 else (0.7 if 4 <= exp < 5 else (0.6 if 9 < exp <= 12 else 0.4))
 
     # Skills
-    skill_score = skill_depth_score(candidate.get('skills', []))
+    skill_score = skill_depth_score(candidate.get('skills', []), exp)
 
     # Education
     education = candidate.get('education', [])
@@ -69,6 +69,24 @@ def build_feature_vector(candidate, semantic_score):
         mult,
         hp,
     ])
+
+
+def has_complex_projects(career_history: list) -> float:
+    complex_keywords = [
+        'predictive mechanism', 'supply chain', 'orchestrator', 'orchestrate', 
+        'feedback loop', 'sentiment analysis', 'predict sentiment', 'end-to-end',
+        'architecture', 'scalable system', 'deployed', 'optimized', 'infrastructure',
+        'production ml', 'pipeline design', 'distributed', 'reduced latency', 'saved cost'
+    ]
+    
+    score_bonus = 0.0
+    for job in career_history:
+        desc = job.get('description', '').lower()
+        matches = sum(1 for kw in complex_keywords if kw in desc)
+        if matches > 0:
+            score_bonus += min(0.15, matches * 0.05)
+            
+    return min(0.20, score_bonus)
 
 
 def fine_score(candidate, semantic_score):
@@ -105,7 +123,7 @@ def fine_score(candidate, semantic_score):
     exp_score = 1.0 if 5 <= exp <= 9 else (0.7 if 4 <= exp < 5 else (0.6 if 9 < exp <= 12 else 0.4))
 
     # 4. Skill Score
-    skill_score = skill_depth_score(skills)
+    skill_score = skill_depth_score(skills, exp)
 
     # 5. Education Score
     tier_w = {'tier_1': 1.0, 'tier_2': 0.8, 'tier_3': 0.6, 'tier_4': 0.4, 'unknown': 0.5}
@@ -160,6 +178,11 @@ def fine_score(candidate, semantic_score):
         # Category B: Experienced
         # 1. Relevant Work Experience, Project Successes, and Leadership (45%)
         prog_score = career_progression_score(career)
+        
+        project_bonus = 0.0
+        if 5.0 <= exp <= 9.0:
+            project_bonus = has_complex_projects(career)
+            
         experience_leadership = (
             0.25 * exp_score +
             0.25 * semantic_score +
@@ -167,6 +190,7 @@ def fine_score(candidate, semantic_score):
             0.15 * company_score +
             0.10 * prog_score
         )
+        experience_leadership = min(1.0, experience_leadership + project_bonus)
         
         # 2. Technical Assessments (35%)
         technical = 0.5 * skill_score + 0.5 * assessments_score

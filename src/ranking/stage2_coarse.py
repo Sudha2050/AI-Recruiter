@@ -23,7 +23,7 @@ def coarse_score(candidate: dict) -> float:
     exp_score = 1.0 if 5 <= exp <= 9 else (0.7 if 4 <= exp < 5 else (0.6 if 9 < exp <= 12 else 0.4))
     
     # 4. Skill Score
-    skill_score = skill_depth_score(candidate.get('skills', []))
+    skill_score = skill_depth_score(candidate.get('skills', []), exp)
     
     # 5. Education Score
     education = candidate.get('education', [])
