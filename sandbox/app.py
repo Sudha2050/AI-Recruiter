@@ -761,6 +761,10 @@ textarea:focus, .gr-textbox textarea:focus {
 }
 
 /* Dataframe */
+.gr-dataframe {
+    max-height: 600px !important;
+    overflow-y: auto !important;
+}
 .gr-dataframe table {
     border-collapse: separate !important;
     border-spacing: 0 !important;
@@ -838,7 +842,7 @@ textarea:focus, .gr-textbox textarea:focus {
 # ------------------------------------------------------------
 # Gradio UI with Improved Styling
 # ------------------------------------------------------------
-with gr.Blocks(title="Redrob AI Ranker", css=CUSTOM_CSS) as demo:
+with gr.Blocks(title="Redrob AI Ranker") as demo:
     # Header
     gr.HTML("""
     <div class="main-header">
@@ -889,7 +893,6 @@ with gr.Blocks(title="Redrob AI Ranker", css=CUSTOM_CSS) as demo:
                         interactive=False,
                         wrap=True,
                         row_count=(100, "dynamic"),
-                        height=600,
                         elem_classes=["gr-dataframe"]
                     )
                     with gr.Row():
@@ -933,4 +936,4 @@ with gr.Blocks(title="Redrob AI Ranker", css=CUSTOM_CSS) as demo:
 
 # Launch with custom CSS
 if __name__ == "__main__":
-    demo.launch(share=True)
+    demo.launch(share=True, css=CUSTOM_CSS)
