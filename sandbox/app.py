@@ -353,22 +353,30 @@ def rank_candidates(jd_text: str, candidates: list, top_k: int = 100) -> pd.Data
     print("Embedding Job Description and candidates...")
     corpus = [aggregate_profile_text(c) for c in candidates]
     
-    # A. BM25 Lexical Scoring
+    # A. BM25 Lexical Scoring on all candidates
     print("Computing BM25 lexical scores...")
     tokenized_corpus = [tokenize(doc) for doc in corpus]
     bm25 = BM25Okapi(tokenized_corpus)
     jd_tokens = tokenize(jd_text)
     bm25_scores = bm25.get_scores(jd_tokens)
 
-    # B. Bi-Encoder Semantic Scoring
-    print("Computing Bi-Encoder semantic scores...")
+    # Pre-filter: keep top 5000 candidates using BM25 (highly optimized for 40k)
+    pre_filter_k = min(5000, len(candidates))
+    pre_filter_indices = np.argsort(bm25_scores)[::-1][:pre_filter_k]
+    
+    candidates_filtered = [candidates[i] for i in pre_filter_indices]
+    corpus_filtered = [corpus[i] for i in pre_filter_indices]
+    bm25_scores_filtered = bm25_scores[pre_filter_indices]
+
+    # B. Bi-Encoder Semantic Scoring (only on pre-filtered candidates)
+    print(f"Computing Bi-Encoder semantic scores on {len(corpus_filtered)} pre-filtered candidates...")
     # Encode JD and normalize
     jd_emb = bi_encoder.encode(jd_text, convert_to_numpy=True)
     jd_norm = jd_emb / np.linalg.norm(jd_emb)
 
     # Encode Candidate Corpus and normalize
     raw_embs = bi_encoder.encode(
-        corpus,
+        corpus_filtered,
         batch_size=64,
         show_progress_bar=True,
         convert_to_numpy=True
@@ -378,30 +386,30 @@ def rank_candidates(jd_text: str, candidates: list, top_k: int = 100) -> pd.Data
     cand_embs = raw_embs / norms
 
     # Compute cosine similarity
-    semantic_scores = np.dot(cand_embs, jd_norm)
+    semantic_scores_filtered = np.dot(cand_embs, jd_norm)
 
-    # C. Min-Max Normalize and Combine Scores
-    bm25_min = bm25_scores.min()
-    bm25_max = bm25_scores.max()
+    # C. Min-Max Normalize and Combine Scores on the filtered set
+    bm25_min = bm25_scores_filtered.min()
+    bm25_max = bm25_scores_filtered.max()
     if bm25_max > bm25_min:
-        norm_bm25 = (bm25_scores - bm25_min) / (bm25_max - bm25_min)
+        norm_bm25 = (bm25_scores_filtered - bm25_min) / (bm25_max - bm25_min)
     else:
-        norm_bm25 = np.zeros_like(bm25_scores)
+        norm_bm25 = np.zeros_like(bm25_scores_filtered)
 
-    sem_min = semantic_scores.min()
-    sem_max = semantic_scores.max()
+    sem_min = semantic_scores_filtered.min()
+    sem_max = semantic_scores_filtered.max()
     if sem_max > sem_min:
-        norm_sem = (semantic_scores - sem_min) / (sem_max - sem_min)
+        norm_sem = (semantic_scores_filtered - sem_min) / (sem_max - sem_min)
     else:
-        norm_sem = np.zeros_like(semantic_scores)
+        norm_sem = np.zeros_like(semantic_scores_filtered)
 
-    hybrid_scores = 0.3 * norm_bm25 + 0.7 * norm_sem
+    hybrid_scores_filtered = 0.3 * norm_bm25 + 0.7 * norm_sem
 
-    top_k_coarse = min(2000, len(candidates))   # keep top 2000 candidates
+    top_k_coarse = min(500, len(candidates_filtered))   # keep top 500 candidates (reduced from 2000)
     print(f"Hybrid retrieval: keeping top {top_k_coarse} candidates")
-    top_indices = np.argsort(hybrid_scores)[::-1][:top_k_coarse]
-    top_candidates = [candidates[i] for i in top_indices]
-    top_texts = [corpus[i] for i in top_indices]
+    top_indices = np.argsort(hybrid_scores_filtered)[::-1][:top_k_coarse]
+    top_candidates = [candidates_filtered[i] for i in top_indices]
+    top_texts = [corpus_filtered[i] for i in top_indices]
     print(f"After Hybrid retrieval: {len(top_candidates)} candidates passed to Cross-Encoder")
 
     # 2. Cross‑Encoder re‑ranking

@@ -53,7 +53,7 @@ ai_usage_summary: |
 # ============================================================================
 methodology_summary: |
   4-stage cascade ranker:
-  1. Hybrid retrieval (BM25 + Bi-Encoder semantic retrieval, top 2000)
+  1. Hybrid retrieval (BM25 + Bi-Encoder semantic retrieval, top 500)
   2. Cross-Encoder (TinyBERT) semantic re-ranking (top 300)
   3. Structured scoring: title, company, experience, skills, education
   4. Behavioral multiplier (14 signals) + honeypot penalty.
