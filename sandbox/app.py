@@ -761,7 +761,9 @@ textarea:focus, .gr-textbox textarea:focus {
 }
 
 /* Dataframe */
-.gr-dataframe {
+.gr-dataframe .table-wrap,
+.gr-dataframe .tbody,
+.gr-dataframe .dataframe {
     max-height: 600px !important;
     overflow-y: auto !important;
 }
