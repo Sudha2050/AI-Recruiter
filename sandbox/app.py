@@ -11,6 +11,18 @@ def custom_unraisable_hook(unraisable):
 
 sys.unraisablehook = custom_unraisable_hook
 
+# Patch gradio_client schema parser to avoid boolean schema TypeError (unhashable type: 'bool')
+try:
+    import gradio_client.utils
+    original_json_schema_to_python_type = gradio_client.utils._json_schema_to_python_type
+    def patched_json_schema_to_python_type(schema, defs):
+        if isinstance(schema, bool):
+            schema = {}
+        return original_json_schema_to_python_type(schema, defs)
+    gradio_client.utils._json_schema_to_python_type = patched_json_schema_to_python_type
+except Exception:
+    pass
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
