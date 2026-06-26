@@ -37,16 +37,11 @@ import numpy as np
 import pandas as pd
 import gradio as gr
 from rank_bm25 import BM25Okapi
-from sentence_transformers import SentenceTransformer, CrossEncoder
+from sentence_transformers import SentenceTransformer
 
-print("Initializing Bi-Encoder model globally...")
-bi_encoder = SentenceTransformer('all-mpnet-base-v2')
-
-print("Initializing Cross-Encoder model globally...")
-cross_encoder = CrossEncoder(
-    'cross-encoder/ms-marco-TinyBERT-L-2-v2',
-    max_length=256
-)
+print("Initializing Bi-Encoder model globally (all-MiniLM-L6-v2)...")
+model_general = SentenceTransformer('all-MiniLM-L6-v2')
+model_skill = model_general
 
 
 # ------------------------------------------------------------
@@ -135,6 +130,31 @@ def aggregate_profile_text(candidate: dict) -> str:
         elif isinstance(skill, str):
             parts.append(skill)
     return ' '.join(parts)
+
+
+def aggregate_profile_text_general(candidate: dict) -> str:
+    profile = candidate.get('profile', {})
+    parts = [
+        profile.get('headline', ''),
+        profile.get('summary', '')
+    ]
+    for career in candidate.get('career_history', []):
+        parts.append(career.get('title', ''))
+        parts.append(career.get('description', ''))
+    return ' '.join([p for p in parts if p])
+
+
+def aggregate_profile_text_skills(candidate: dict) -> str:
+    skills = candidate.get('skills', [])
+    skill_names = []
+    for skill in skills:
+        if isinstance(skill, dict):
+            name = skill.get('name', '')
+            if name:
+                skill_names.append(name)
+        elif isinstance(skill, str) and skill:
+            skill_names.append(skill)
+    return ', '.join(skill_names)
 
 
 def tokenize(text: str):
@@ -369,88 +389,71 @@ def rank_candidates(jd_text: str, candidates: list, top_k: int = 100) -> pd.Data
 
     print(f"Total candidates: {len(candidates)}")
 
-    # 1. Hybrid Lexical & Semantic Retrieval
-    print("Embedding Job Description and candidates...")
-    corpus = [aggregate_profile_text(c) for c in candidates]
-    
-    # A. BM25 Lexical Scoring on all candidates
+    # 1. Coarse Lexical Retrieval (BM25) to select top 2000 candidates
     print("Computing BM25 lexical scores...")
+    corpus = [aggregate_profile_text(c) for c in candidates]
     tokenized_corpus = [tokenize(doc) for doc in corpus]
     bm25 = BM25Okapi(tokenized_corpus)
     jd_tokens = tokenize(jd_text)
     bm25_scores = bm25.get_scores(jd_tokens)
 
-    # Pre-filter: keep top 300 candidates using BM25 (highly optimized for 40k)
-    pre_filter_k = min(300, len(candidates))
+    # Pre-filter: keep top 2000 candidates using BM25
+    pre_filter_k = min(2000, len(candidates))
     pre_filter_indices = np.argsort(bm25_scores)[::-1][:pre_filter_k]
     
-    candidates_filtered = [candidates[i] for i in pre_filter_indices]
-    corpus_filtered = [corpus[i] for i in pre_filter_indices]
-    bm25_scores_filtered = bm25_scores[pre_filter_indices]
+    top_bm25_candidates = [candidates[i] for i in pre_filter_indices]
+    print(f"BM25 retrieval: selected top {pre_filter_k} candidates for semantic ensembling")
 
-    # B. Bi-Encoder Semantic Scoring (only on pre-filtered candidates)
-    print(f"Computing Bi-Encoder semantic scores on {len(corpus_filtered)} pre-filtered candidates...")
-    # Encode JD and normalize
-    jd_emb = bi_encoder.encode(jd_text, convert_to_numpy=True)
-    jd_norm = jd_emb / np.linalg.norm(jd_emb)
+    # 2. Dual Bi-Encoder Semantic Scoring
+    print("Encoding Job Description and candidates using general and skill models...")
+    # A. General representation
+    jd_emb_gen = model_general.encode(jd_text, convert_to_numpy=True)
+    jd_norm_gen = jd_emb_gen / (np.linalg.norm(jd_emb_gen) or 1.0)
 
-    # Encode Candidate Corpus and normalize
-    raw_embs = bi_encoder.encode(
-        corpus_filtered,
+    general_texts = [aggregate_profile_text_general(c) for c in top_bm25_candidates]
+    gen_embs = model_general.encode(
+        general_texts,
         batch_size=64,
         show_progress_bar=True,
         convert_to_numpy=True
     )
-    norms = np.linalg.norm(raw_embs, axis=1, keepdims=True)
-    norms = np.where(norms == 0, 1.0, norms)
-    cand_embs = raw_embs / norms
+    gen_norms = np.linalg.norm(gen_embs, axis=1, keepdims=True)
+    gen_norms = np.where(gen_norms == 0, 1.0, gen_norms)
+    gen_embs_norm = gen_embs / gen_norms
+    general_scores = np.dot(gen_embs_norm, jd_norm_gen)
 
-    # Compute cosine similarity
-    semantic_scores_filtered = np.dot(cand_embs, jd_norm)
+    # B. Skill representation
+    jd_emb_skill = model_skill.encode(jd_text, convert_to_numpy=True)
+    jd_norm_skill = jd_emb_skill / (np.linalg.norm(jd_emb_skill) or 1.0)
 
-    # C. Min-Max Normalize and Combine Scores on the filtered set
-    bm25_min = bm25_scores_filtered.min()
-    bm25_max = bm25_scores_filtered.max()
-    if bm25_max > bm25_min:
-        norm_bm25 = (bm25_scores_filtered - bm25_min) / (bm25_max - bm25_min)
-    else:
-        norm_bm25 = np.zeros_like(bm25_scores_filtered)
-
-    sem_min = semantic_scores_filtered.min()
-    sem_max = semantic_scores_filtered.max()
-    if sem_max > sem_min:
-        norm_sem = (semantic_scores_filtered - sem_min) / (sem_max - sem_min)
-    else:
-        norm_sem = np.zeros_like(semantic_scores_filtered)
-
-    hybrid_scores_filtered = 0.3 * norm_bm25 + 0.7 * norm_sem
-
-    top_k_coarse = min(300, len(candidates_filtered))   # keep top 300 candidates (reduced from 2000)
-    print(f"Hybrid retrieval: keeping top {top_k_coarse} candidates")
-    top_indices = np.argsort(hybrid_scores_filtered)[::-1][:top_k_coarse]
-    top_candidates = [candidates_filtered[i] for i in top_indices]
-    top_texts = [corpus_filtered[i] for i in top_indices]
-    print(f"After Hybrid retrieval: {len(top_candidates)} candidates passed to Cross-Encoder")
-
-    # 2. Cross‑Encoder re‑ranking
-    print("Running Cross-Encoder prediction...")
-    pairs = [(jd_text, text) for text in top_texts]
-    cross_scores = cross_encoder.predict(
-        pairs,
-        batch_size=256,   # was 153
-        convert_to_numpy=True,
-        show_progress_bar=True
+    skill_texts = [aggregate_profile_text_skills(c) for c in top_bm25_candidates]
+    skill_embs = model_skill.encode(
+        skill_texts,
+        batch_size=64,
+        show_progress_bar=True,
+        convert_to_numpy=True
     )
+    skill_norms = np.linalg.norm(skill_embs, axis=1, keepdims=True)
+    skill_norms = np.where(skill_norms == 0, 1.0, skill_norms)
+    skill_embs_norm = skill_embs / skill_norms
+    skill_scores = np.dot(skill_embs_norm, jd_norm_skill)
 
-    top_500_count = min(300, len(top_candidates))  # re-rank top 300 candidates
-    top_500_indices = np.argsort(cross_scores)[::-1][:top_500_count]
-    top_500_candidates = [top_candidates[i] for i in top_500_indices]
-    top_500_scores = cross_scores[top_500_indices]
+    # C. Combine scores (average)
+    combined_semantic = (general_scores + skill_scores) / 2
+    combined_semantic = np.clip(combined_semantic, 0.0, 1.0)
 
-    # 3. Final scoring
+    # 3. Keep top 300 candidates based on combined semantic score
+    top_sem_k = min(300, len(top_bm25_candidates))
+    sem_sorted_indices = np.argsort(combined_semantic)[::-1][:top_sem_k]
+    
+    top_300_candidates = [top_bm25_candidates[i] for i in sem_sorted_indices]
+    top_300_semantic_scores = combined_semantic[sem_sorted_indices]
+    print(f"Semantic ensembling: selected top {top_sem_k} candidates for final structured and behavioral scoring")
+
+    # 4. Final scoring stage
     final_scores = []
-    for idx, cand in enumerate(top_500_candidates):
-        semantic = float(top_500_scores[idx])
+    for idx, cand in enumerate(top_300_candidates):
+        semantic = float(top_300_semantic_scores[idx])
 
         profile = cand['profile']
         title = profile.get('current_title', '').lower()
@@ -525,7 +528,7 @@ def chatbot_response(message, history):
         cid = re.search(r'cand[_-]?\d{5,7}', lower, re.I).group(0).upper()
         return f"Please run a ranking first, then I can explain candidate {cid}."
     if 'how' in lower or 'work' in lower:
-        return "The system uses Hybrid (BM25 + Bi‑Encoder) retrieval → Cross‑Encoder re‑ranking → Structured scoring → Behavioral multiplier → Honeypot penalty. Scores are 0–100."
+        return "The system uses Hybrid (BM25 + Dual Bi-Encoder Ensemble) retrieval → Structured scoring (experience, company tier, skills, education) → Behavioral multiplier → Honeypot penalty. Semantic scoring uses an ensemble of General Text (headline + summary + careers) and Skill-only embeddings. Scores are 0–100."
     if 'hello' in lower or 'hi' in lower:
         return "Hello! Upload a JD and candidates file, then ask me about results."
     return "I can help with: 'Explain CAND-00021', 'How does it work?', 'Compare CAND-00021 and CAND-00123'."

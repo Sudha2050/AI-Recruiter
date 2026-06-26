@@ -52,13 +52,12 @@ ai_usage_summary: |
 # Approach summary
 # ============================================================================
 methodology_summary: |
-  4-stage cascade ranker:
-  1. Hybrid retrieval (BM25 + Bi-Encoder semantic retrieval, top 300)
-  2. Cross-Encoder (TinyBERT) semantic re-ranking (top 300)
-  3. Structured scoring: title, company, experience, skills, education
-  4. Behavioral multiplier (14 signals) + honeypot penalty.
-  Final score = (0.4*semantic + 0.6*structured) × behavioral × honeypot.
-  Scores scaled to 0–100. Runtime ~30 seconds on CPU.
+  3-stage cascade ranker:
+  1. BM25 coarse filtering to select top 2000 candidates.
+  2. Dual Bi-Encoder Ensemble semantic scoring using all-MiniLM-L6-v2 (averaging General and Skill-only representation cosine similarities) to select top 300 candidates.
+  3. Structured scoring (title, company tier, experience, skills, education) + Behavioral multiplier (14 signals) + Honeypot penalty.
+  Final score = (0.55*semantic + 0.45*structured) × behavioral × honeypot.
+  Scores scaled to 0–100. Runtime ~15 seconds on CPU.
 
 # ============================================================================
 # Declarations

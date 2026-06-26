@@ -27,7 +27,7 @@ The system features a **Dynamic Category-Based Scoring System** that adapts eval
   2. **Stage 2 – Coarse Ranking**: High-speed heuristic scoring using job-specific criteria (titles, company tiers, skill depth) to select the top 5,000 candidates.
   3. **Stage 3 – Semantic Ranking**: Semantic similarity search using Sentence-Transformer dense embeddings (`all-mpnet-base-v2`) to pick the top 500 candidates.
   4. **Stage 4 – Fine Ranking**: Category-aware weighted evaluation integrating work experience, academic background, assessments, and soft-skill metrics.
-- **Interactive UI** – Gradio dashboard (`sandbox/app.py`) featuring Hybrid (BM25 + Bi-Encoder) retrieval, Cross-Encoder re-ranking, and dynamic candidate profiling.
+- **Interactive UI** – Gradio dashboard (`sandbox/app.py`) featuring Hybrid (BM25 + Dual Bi-Encoder Ensemble) retrieval and dynamic candidate profiling.
 - **Automated Explanations** – Generates concise, honest reasoning statements for each ranked candidate.
 
 ---
