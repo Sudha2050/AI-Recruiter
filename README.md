@@ -22,12 +22,17 @@ The system features a **Dynamic Category-Based Scoring System** that adapts eval
 
 ## Key Features
 
-- **Multi-Stage Ranking Pipeline**
-  1. **Stage 1 – Honeypot & Trap Filter**: Removes fictional companies, impossible timelines, and ghost profiles. Freshers bypass strict keyword-stuffer checks.
-  2. **Stage 2 – Coarse Ranking**: High-speed heuristic scoring using job-specific criteria (titles, company tiers, skill depth) to select the top 5,000 candidates.
-  3. **Stage 3 – Semantic Ranking**: Semantic similarity search using Sentence-Transformer dense embeddings (`all-mpnet-base-v2`) to pick the top 500 candidates.
-  4. **Stage 4 – Fine Ranking**: Category-aware weighted evaluation integrating work experience, academic background, assessments, and soft-skill metrics.
-- **Interactive UI** – Gradio dashboard (`sandbox/app.py`) featuring Hybrid (BM25 + Dual Bi-Encoder Ensemble) retrieval and dynamic candidate profiling.
+- **Multi-Stage Ranking Pipelines**
+  - **CLI Pipeline (`rank.py`)**:
+    1. **Stage 1 – Honeypot & Trap Filter**: Removes fictional companies, impossible timelines, and ghost profiles. Freshers bypass strict checks.
+    2. **Stage 2 – Coarse Ranking**: High-speed heuristic scoring using job-specific criteria (titles, company tiers, skill depth) to select the top 5,000 candidates.
+    3. **Stage 3 – Semantic Ranking**: Semantic similarity search using Sentence-Transformer dense embeddings to pick the top 500 candidates.
+    4. **Stage 4 – Fine Ranking**: Category-aware weighted evaluation integrating work experience, academic background, assessments, and soft-skill metrics.
+  - **Interactive UI Dashboard (`sandbox/app.py`)**:
+    1. **Stage 1 – Optimized BM25 Lexical Filtering**: Excludes long candidate career history descriptions to achieve a **17.8x speedup** on datasets as large as 1 Lakh candidates, selecting the top 2,000.
+    2. **Stage 2 – Dual Bi-Encoder Ensemble Retrieval**: Encodes the top 2000 using `all-MiniLM-L6-v2` across two representation schemes: General Context and Skills-Only. Averages their cosine similarities to pick the top 300.
+    3. **Stage 3 – Final Scoring**: Computes structured grading (titles, company tiers, skill depth, education), behavioral multipliers, and honeypot checks.
+- **Premium Interactive Dashboard** – Gradio web dashboard styled with a modern dark theme and custom Inter layout, featuring real-time ranking status, an AI Chat Assistant, and dual `.csv` and `.xlsx` download buttons.
 - **Automated Explanations** – Generates concise, honest reasoning statements for each ranked candidate.
 
 ---
