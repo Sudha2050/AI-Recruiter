@@ -380,8 +380,8 @@ def rank_candidates(jd_text: str, candidates: list, top_k: int = 100) -> pd.Data
     jd_tokens = tokenize(jd_text)
     bm25_scores = bm25.get_scores(jd_tokens)
 
-    # Pre-filter: keep top 500 candidates using BM25 (highly optimized for 40k)
-    pre_filter_k = min(500, len(candidates))
+    # Pre-filter: keep top 300 candidates using BM25 (highly optimized for 40k)
+    pre_filter_k = min(300, len(candidates))
     pre_filter_indices = np.argsort(bm25_scores)[::-1][:pre_filter_k]
     
     candidates_filtered = [candidates[i] for i in pre_filter_indices]
@@ -425,7 +425,7 @@ def rank_candidates(jd_text: str, candidates: list, top_k: int = 100) -> pd.Data
 
     hybrid_scores_filtered = 0.3 * norm_bm25 + 0.7 * norm_sem
 
-    top_k_coarse = min(500, len(candidates_filtered))   # keep top 500 candidates (reduced from 2000)
+    top_k_coarse = min(300, len(candidates_filtered))   # keep top 300 candidates (reduced from 2000)
     print(f"Hybrid retrieval: keeping top {top_k_coarse} candidates")
     top_indices = np.argsort(hybrid_scores_filtered)[::-1][:top_k_coarse]
     top_candidates = [candidates_filtered[i] for i in top_indices]
