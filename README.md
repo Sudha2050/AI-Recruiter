@@ -2,7 +2,7 @@
 title: AI Recruiter
 emoji: 🧠
 colorFrom: indigo
-colorTo: slate
+colorTo: gray
 sdk: gradio
 sdk_version: 4.36.1
 app_file: sandbox/app.py
