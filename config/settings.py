@@ -20,8 +20,8 @@ TOP_K_SEMANTIC = 500     # after stage 3
 TOP_K_FINAL = 100        # output
 
 # Embedding model
-EMBEDDING_MODEL = "all-mpnet-base-v2"
-EMBEDDING_DIM = 768
+EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+EMBEDDING_DIM = 384
 EMBEDDING_BATCH_SIZE = 64   # <-- ADD THIS LINE (adjust based on your RAM)
 EMBEDDING_NORM = True
 
